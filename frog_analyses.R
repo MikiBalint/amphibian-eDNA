@@ -71,11 +71,22 @@ MPX = grep("sample.MPX", names(AbundHead))
 colnames(AbundHead)[MPX]
 
 # Maximum number of reads in any control sample
-MaxControl = summary(apply(AbundHead[,c(PNC,NTC,NC,MPX)], 1, max))
+MaxControl = apply(AbundHead[,c(PNC,NTC,NC,MPX)], 1, max)
+
+# Extract the highest read number in a control from every sample
+# checks
+AbundHead[1:5,100:102]
+MaxControl[1:5]
+sweep(AbundHead[1:5,100:102], 1, MaxControl[1:5], "-")
+
+AbundControlled = sweep(AbundHead, 1, MaxControl, "-")
+
+AbundControlled[AbundControlled < 0] <- 0
+
+summary(apply(AbundControlled,2,sum))
+summary(apply(AbundHead,1,sum))
 
 # 
-
-
 
 
 
