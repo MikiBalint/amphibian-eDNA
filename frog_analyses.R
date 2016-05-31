@@ -2,7 +2,6 @@ library(vegan)
 library(vegan3d)
 library(bvenn)
 
-
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
                      header=T, row.names=1)
 EmblAssign = read.csv(file="abundances/frogs_16S_EMBL.tab", sep="\t",
@@ -71,9 +70,10 @@ colnames(AbundHead)[NC]
 MPX = grep("sample.MPX", names(AbundHead))
 colnames(AbundHead)[MPX]
 
+# Maximum number of reads in any control sample
+MaxControl = summary(apply(AbundHead[,c(PNC,NTC,NC,MPX)], 1, max))
 
-
-
+# 
 
 
 
