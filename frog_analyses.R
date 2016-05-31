@@ -49,9 +49,10 @@ AbundAll = rbind(AbundOwn, AbundEmbl)
 AbundHead = AbundAll[MetaAll$h_count > 0,]
 MetaHead = MetaAll[MetaAll$h_count > 0,]
 
-# Presence-absence data for the occupancy models
+# 160525 clean up negative controls: remove the maximum read number of a 
+# sequence variant found in a negative control from every sample that 
+# contains that sequence variant
 
-# 160525
 # negative controls
 
 # PCR controls
@@ -86,9 +87,51 @@ AbundControlled[AbundControlled < 0] <- 0
 summary(apply(AbundControlled,2,sum))
 summary(apply(AbundHead,1,sum))
 
+# Aggregate sequence variants according to the species 
+ToAggregate = data.frame(name = MetaHead$sci_name, AbundControlled)
+SpeCounts = aggregate(. ~ name, ToAggregate, sum, na.action = na.exclude)
+rownames(SpeCounts) = SpeCounts$name
+SpeCounts = SpeCounts[,2:341]
+
+# data frame of non-control samples
+# positive contols: 
+C.PCE = grep("sample.P.PCE", names(SpeCounts))
+C.PCUNE = grep("sample.P.PCUNE", names(SpeCounts))
+
+# negative controls: 
+C.PNC = grep("sample.P.NC", names(SpeCounts))
+C.NTC = grep("sample.NTC", names(SpeCounts))
+C.NC = grep("sample.NC", names(SpeCounts))
+C.MPX = grep("sample.MPX", names(SpeCounts))
+
+Controls = c(C.PCE,C.PCUNE,C.PNC,C.NTC,C.NC,C.MPX)
+
+# reads from lake observations
+AbundLakes = SpeCounts[-Controls]
+
+# Transform to presence-absences for species occupancy models
+AbundSOM = AbundLakes
+AbundSOM[AbundSOM > 0] <- 1
+
+write.csv(file = "SOM_data.csv", AbundSOM)
+  
 # 
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
 
+# Species list
+SpecList = sort(unique(rownames(SpeCounts)))
+
+# Correct the Scinax madeirae 
+rownames(SpeCounts)[32] <- "Scinax madeirae"
 
 
 
@@ -130,16 +173,7 @@ write.csv(file="16S_R_filtered.csv", Heads16S)
 # Deal with multiplexing and negative controls here!!!
 ######################################################
 
-# Aggregate species
-ToAggregate = cbind(names = Heads16S$scientific_name, Heads16S[,8:343])
-SpeCounts = aggregate(. ~ names, ToAggregate, sum)
-rownames(SpeCounts) = SpeCounts$names
-SpeCounts = SpeCounts[,2:337]
-# Species list
-SpecList = sort(unique(rownames(SpeCounts)))
 
-# Correct the Scinax madeirae 
-rownames(SpeCounts)[32] <- "Scinax madeirae"
 
 # Simple lake-based ordination
 IsLake = grep("^T", colnames(SpeCounts))
