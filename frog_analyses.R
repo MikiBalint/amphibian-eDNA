@@ -114,8 +114,25 @@ AbundLakes = SpeCounts[-Controls]
 AbundSOM = AbundLakes
 AbundSOM[AbundSOM > 0] <- 1
 
-write.csv(file = "SOM_data.csv", AbundSOM)
-  
+# write.csv(file = "SOM_data.csv", AbundSOM)
+
+# Amphibians
+Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus","Dendropsophus minutus","Dendropsophus nanus","Dermatonotus muelleri","Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea","Hypsiboas punctatus","Hypsiboas raniceps","Leptodactylus","Leptodactylus chaquensis","Leptodactylus elenae","Leptodactylus fuscus","Leptodactylus podicipinus","Leptodactylus syphax","Leptodactylus vastus","Osteocephalus","Osteocephalus taurinus","Phyllomedusa azurea","Phyllomedusa boliviana","Physalaemus albonotatus","Physalaemus centralis","Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa","Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus","Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a","Bufonidae","Elachistocleis","Gastrophryninae","Hylidae","Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
+nrow(AbundSOM[Amphi,])
+
+InputSOM = AbundSOM[Amphi,grep("sample.T", names(AbundSOM))]
+
+# create SOM alternative input for export
+cbind(rownames(InputSOM)[1], t(InputSOM[1,]))
+
+ArrangedSOM = matrix(ncol = 2)
+for (i in 1:nrow(InputSOM)) {
+  ArrangedSOM = rbind(ArrangedSOM, cbind(rownames(InputSOM)[i], t(InputSOM[i,])))
+}
+
+# This writes out the file that can be edited to get the input format required by Thierry
+# write.csv(file="input_som.csv", ArrangedSOM)
+
 # Clarify vague identifications
 # Osteocephalus
 grep("Osteocephalus", MetaHead$sci_name)
@@ -131,6 +148,7 @@ write.csv(file = "species-to-clear.csv", rbind(osteo,elach,pseud))
 
 # tree checked in seaview, I would believe all variants.
 
+# 
   
   
   
