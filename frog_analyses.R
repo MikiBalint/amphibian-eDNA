@@ -1,6 +1,7 @@
 library(vegan)
 library(vegan3d)
 library(bvenn)
+library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
                      header=T, row.names=1)
@@ -115,9 +116,21 @@ AbundSOM[AbundSOM > 0] <- 1
 
 write.csv(file = "SOM_data.csv", AbundSOM)
   
-# 
-  
-  
+# Clarify vague identifications
+# Osteocephalus
+grep("Osteocephalus", MetaHead$sci_name)
+osteo = MetaHead[grep("Osteocephalus", MetaHead$sci_name),]
+
+# Elachistocleis
+elach = MetaHead[grep("Elachistocleis", MetaHead$sci_name),]
+
+# Pseudis
+pseud = MetaHead[grep("Pseudis", MetaHead$sci_name),]
+
+write.csv(file = "species-to-clear.csv", rbind(osteo,elach,pseud))
+
+# tree checked in seaview, I would believe all variants.
+
   
   
   
