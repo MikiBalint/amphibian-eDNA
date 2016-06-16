@@ -119,6 +119,60 @@ colnames(PresentReps) = SampleNames
 SummedControlled = SummedReps
 SummedControlled[PresentReps < 2] <- 0
 
+# Categories for sequence variants: frogs, humans, other aquatic stuff, etc.
+# Amphi, HighGroup, "Homo sapiens", FarmAnim, Bird, Fish, Insect, Mammal
+Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
+          "Dendropsophus minutus","Dendropsophus nanus","Dermatonotus muelleri",
+          "Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea",
+          "Hypsiboas punctatus","Hypsiboas raniceps","Leptodactylus",
+          "Leptodactylus chaquensis","Leptodactylus elenae","Leptodactylus fuscus",
+          "Leptodactylus podicipinus","Leptodactylus syphax","Leptodactylus vastus",
+          "Osteocephalus","Osteocephalus taurinus","Phyllomedusa azurea",
+          "Phyllomedusa boliviana","Physalaemus albonotatus","Physalaemus centralis",
+          "Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa",
+          "Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus",
+          "Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a",
+          "Bufonidae","Elachistocleis","Gastrophryninae","Hylidae",
+          "Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
+
+HighGroup = c("root", "Bilateria", "Amniota")
+
+FarmAnim = c("Canis", "Sus scrofa", "Gallus", "Mus", "Bos", "Capreolus capreolus")
+write.csv(file = "other_taxa.csv", 
+          MetaHead$sci_name[!MetaHead$sci_name %in% 
+                              c(Amphi, HighGroup, "Homo sapiens", FarmAnim)])
+
+Bird = c("Meleagris gallopavo", "Jacana", "Gallus")
+
+Fish = c("Astyanax","Brachyplatystoma rousseauxii","Callichthys callichthys","Characidae",
+         "Characiphysae","Opisthonema oglinum","Salmonidae","Sardinops","Sardinops sagax",
+         "Siluriformes","Siluroidei","Synbranchus marmoratus","Thraupidae","Thunnini")
+
+Insect = c("Micrathyria ocellata", "Libellulidae", "Micrathyria", "Tabanus", "Tramea")
+
+Mammal = c("Homo sapiens", "Canis", "Sus scrofa", "Mus", "Bos", "Capreolus capreolus",
+           "Myotis", "Laurasiatheria")
+
+# Proportions of different groups
+pie(c(sum(SummedControlled[MetaHead$sci_name %in% Amphi,]), 
+      sum(SummedControlled[MetaHead$sci_name %in% Mammal,]),
+      sum(SummedControlled[MetaHead$sci_name %in% Fish,]),
+      sum(SummedControlled[MetaHead$sci_name %in% Insect,]),
+      sum(SummedControlled[MetaHead$sci_name %in% Bird,]),
+      sum(SummedControlled[MetaHead$sci_name %in% HighGroup,])),
+    labels = c("Frogs", "Mammal", "Fish", "Insect", "Bird", "Higher groups"),
+    col = c(gray(0.9), gray(0.75), gray(0.60), gray(0.45), gray(0.30), gray(0.15)))
+
+# Farm animals:
+sum(SummedControlled[MetaHead$sci_name %in% FarmAnim,])
+
+# Humans:
+sum(SummedControlled[MetaHead$sci_name == "Homo sapiens",])
+
+# Libellulidae: 
+sum(SummedControlled[MetaHead$sci_name %in% c("Micrathyria ocellata", "Libellulidae", 
+                                            "Micrathyria", "Tramea"),])
+
 # 
 
 # Aggregate sequence variants according to the species 
@@ -161,7 +215,8 @@ Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
           "Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa",
           "Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus",
           "Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a",
-          "Bufonidae","Elachistocleis","Gastrophryninae","Hylidae","Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
+          "Bufonidae","Elachistocleis","Gastrophryninae","Hylidae",
+          "Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
 nrow(AbundSOM[Amphi,])
 
 InputSOM = AbundSOM[Amphi,grep("sample.T", names(AbundSOM))]
