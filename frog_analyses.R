@@ -88,6 +88,39 @@ AbundControlled[AbundControlled < 0] <- 0
 summary(apply(AbundControlled,2,sum))
 summary(apply(AbundHead,1,sum))
 
+# combine the replicates of samples
+# get sample names, code from here: http://stackoverflow.com/questions/9704213/r-remove-part-of-string
+SampleNames = levels(as.factor(sapply(strsplit(names(AbundControlled), 
+                                               split='16S', fixed=TRUE), 
+                                      function(x) (x[1]))))
+
+# Sum the replicates for each sample
+# Any suggestions are welcome to avoid the loop!!!
+SummedReps = data.frame(row.names = rownames(AbundControlled))
+for (i in 1:length(SampleNames)){
+  ActualSet = grep(SampleNames[i], names(AbundControlled)) # grep the columns of interest
+  SummedReps = cbind(SummedReps, apply(AbundControlled[ActualSet], 1, sum))
+}
+colnames(SummedReps) = SampleNames
+# write.csv(file="test.csv", AbundControlled)
+
+# In how many replicates observed per sample?
+PresentReps = data.frame(row.names = rownames(AbundControlled))
+for (i in 1:length(SampleNames)){
+  ActualSet = grep(SampleNames[i], names(AbundControlled))
+  Selected = AbundControlled[ActualSet]
+  Selected[Selected > 0] <- 1 # set the read numbers to 1
+  PresentReps = cbind(PresentReps, apply(Selected, 1, sum))
+}
+colnames(PresentReps) = SampleNames
+
+# Set read numbers to 0 in a sample if the sequence variant was not observed in at least
+# two PCR replicates
+SummedControlled = SummedReps
+SummedControlled[PresentReps < 2] <- 0
+
+# 
+
 # Aggregate sequence variants according to the species 
 ToAggregate = data.frame(name = MetaHead$sci_name, AbundControlled)
 SpeCounts = aggregate(. ~ name, ToAggregate, sum, na.action = na.exclude)
@@ -117,7 +150,18 @@ AbundSOM[AbundSOM > 0] <- 1
 # write.csv(file = "SOM_data.csv", AbundSOM)
 
 # Amphibians
-Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus","Dendropsophus minutus","Dendropsophus nanus","Dermatonotus muelleri","Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea","Hypsiboas punctatus","Hypsiboas raniceps","Leptodactylus","Leptodactylus chaquensis","Leptodactylus elenae","Leptodactylus fuscus","Leptodactylus podicipinus","Leptodactylus syphax","Leptodactylus vastus","Osteocephalus","Osteocephalus taurinus","Phyllomedusa azurea","Phyllomedusa boliviana","Physalaemus albonotatus","Physalaemus centralis","Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa","Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus","Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a","Bufonidae","Elachistocleis","Gastrophryninae","Hylidae","Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
+Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
+          "Dendropsophus minutus","Dendropsophus nanus","Dermatonotus muelleri",
+          "Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea",
+          "Hypsiboas punctatus","Hypsiboas raniceps","Leptodactylus",
+          "Leptodactylus chaquensis","Leptodactylus elenae","Leptodactylus fuscus",
+          "Leptodactylus podicipinus","Leptodactylus syphax","Leptodactylus vastus",
+          "Osteocephalus","Osteocephalus taurinus","Phyllomedusa azurea",
+          "Phyllomedusa boliviana","Physalaemus albonotatus","Physalaemus centralis",
+          "Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa",
+          "Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus",
+          "Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a",
+          "Bufonidae","Elachistocleis","Gastrophryninae","Hylidae","Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
 nrow(AbundSOM[Amphi,])
 
 InputSOM = AbundSOM[Amphi,grep("sample.T", names(AbundSOM))]
