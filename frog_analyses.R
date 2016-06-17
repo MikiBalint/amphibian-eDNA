@@ -1,7 +1,8 @@
 library(vegan)
 library(vegan3d)
 library(bvenn)
-library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
+library(knitr)
+# library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
                      header=T, row.names=1)
@@ -253,47 +254,55 @@ for (i in C.PCE) {
 # The PCUNE corrections come here.
 
 
-
 # Ecological signal: differences among the lakes VS preservation/extraction methods
-# Simple lake-based ordination
-IsLake = grep("^T", colnames(SpeCounts))
+# Transpose the frog counts: species in columns, samples in lines
+FrogCountsT = t(FrogCounts)
 
-# Get and transpose the abundances
-LakeReads = t(SpeCounts[,IsLake])
-hist(apply(LakeReads,2,sum), nclass=20, col="grey", main="Fajabundancia-eloszlás",
-     xlab="Egyes fajok szekvencia-észlelései", ylab="Gyakoriság")
+# Some samples don't have reads at all:
+summary(apply(FrogCountsT,1,sum))
 
-LakeMeta = substr(rownames(LakeReads),1,2)
+# Keep only samples with reads
+SamplesNoZero = as.vector(apply(FrogCountsT,1,sum) != 0)
 
-boxplot(apply(LakeReads,1,sum) ~ LakeMeta)
+# Filter for lake samples
+Samples = SiteMeta$Methods != "Control"
 
-LakeNMDS = metaMDS(LakeReads, k=3, trymax=100)
+# Samples that are lakes and have some reads:
+SiteMeta[SamplesNoZero & Samples,]
+
+# Distribution of read abundances
+hist(apply(FrogCountsT,2,sum), nclass=20, col="grey", 
+     main="Distribution of read abundances",
+     xlab="Read counts per species", ylab="Frequency")
+
+# Simple NMDS plot
+LakeNMDS = metaMDS(FrogCountsT[SamplesNoZero & Samples,])
 
 par(mar=c(4,4,1,1))
 plot(LakeNMDS$points, type="n", xlab="NMDS1", ylab="NMDS2")
-ordispider(LakeNMDS, LakeMeta, col="grey")
-points(LakeNMDS, pch=20, cex=log(apply(LakeReads,1,mean))/3, col="black")
-mylegend = legend(-1.6, 1.2, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
+ordispider(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"], col="grey")
+points(LakeNMDS, pch=20)
+mylegend = legend(-3.3, 3, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
                   fill=c("orange","green","purple","red","blue"), border="white", bty="n")
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("orange"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("green"),
+ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", 
+            col=c("orange"), alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
+ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("green"),
             alpha=170,kind="se",conf=0.95, show.groups=(c("T2")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("purple"),
+ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("purple"),
             alpha=170,kind="se",conf=0.95, show.groups=(c("T3")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("red"),
+ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("red"),
             alpha=170,kind="se",conf=0.95, show.groups=(c("T4")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("blue"),
+ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("blue"),
             alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
 
-# # Dynamic plot
-# ordirgl(LakeNMDS)
-# orglspider(LakeNMDS, LakeMeta)
-# orgltext(MDS.all.3, rownames(fun.some))
+# Model-based comparisons of the lakes
+FrogsMvabund = mvabund(FrogCountsT[SamplesNoZero & Samples,])
 
+m1 = manyglm(FrogsMvabund ~ Lakes + Methods, 
+             data=SiteMeta[SamplesNoZero & Samples,])
+m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
 
-
-
+kable(m1.anova$table)
 
 
 # 
