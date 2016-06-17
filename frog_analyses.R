@@ -255,7 +255,41 @@ for (i in C.PCE) {
 
 
 # Ecological signal: differences among the lakes VS preservation/extraction methods
+# Simple lake-based ordination
+IsLake = grep("^T", colnames(SpeCounts))
 
+# Get and transpose the abundances
+LakeReads = t(SpeCounts[,IsLake])
+hist(apply(LakeReads,2,sum), nclass=20, col="grey", main="Fajabundancia-eloszlás",
+     xlab="Egyes fajok szekvencia-észlelései", ylab="Gyakoriság")
+
+LakeMeta = substr(rownames(LakeReads),1,2)
+
+boxplot(apply(LakeReads,1,sum) ~ LakeMeta)
+
+LakeNMDS = metaMDS(LakeReads, k=3, trymax=100)
+
+par(mar=c(4,4,1,1))
+plot(LakeNMDS$points, type="n", xlab="NMDS1", ylab="NMDS2")
+ordispider(LakeNMDS, LakeMeta, col="grey")
+points(LakeNMDS, pch=20, cex=log(apply(LakeReads,1,mean))/3, col="black")
+mylegend = legend(-1.6, 1.2, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
+                  fill=c("orange","green","purple","red","blue"), border="white", bty="n")
+ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("orange"),
+            alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
+ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("green"),
+            alpha=170,kind="se",conf=0.95, show.groups=(c("T2")))
+ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("purple"),
+            alpha=170,kind="se",conf=0.95, show.groups=(c("T3")))
+ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("red"),
+            alpha=170,kind="se",conf=0.95, show.groups=(c("T4")))
+ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("blue"),
+            alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
+
+# # Dynamic plot
+# ordirgl(LakeNMDS)
+# orglspider(LakeNMDS, LakeMeta)
+# orgltext(MDS.all.3, rownames(fun.some))
 
 
 
@@ -387,47 +421,7 @@ sum(Heads16S[,8:343])
 
 write.csv(file="16S_R_filtered.csv", Heads16S)
 
-######################################################
-# Deal with multiplexing and negative controls here!!!
-######################################################
 
-
-
-# Simple lake-based ordination
-IsLake = grep("^T", colnames(SpeCounts))
-
-# Get and transpose the abundances
-LakeReads = t(SpeCounts[,IsLake])
-hist(apply(LakeReads,2,sum), nclass=20, col="grey", main="Fajabundancia-eloszlás",
-     xlab="Egyes fajok szekvencia-észlelései", ylab="Gyakoriság")
-
-LakeMeta = substr(rownames(LakeReads),1,2)
-
-boxplot(apply(LakeReads,1,sum) ~ LakeMeta)
-
-LakeNMDS = metaMDS(LakeReads, k=3, trymax=100)
-
-par(mar=c(4,4,1,1))
-plot(LakeNMDS$points, type="n", xlab="NMDS1", ylab="NMDS2")
-ordispider(LakeNMDS, LakeMeta, col="grey")
-points(LakeNMDS, pch=20, cex=log(apply(LakeReads,1,mean))/3, col="black")
-mylegend = legend(-1.6, 1.2, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
-                  fill=c("orange","green","purple","red","blue"), border="white", bty="n")
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("orange"),
-                          alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("green"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T2")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("purple"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T3")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("red"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T4")))
-ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("blue"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
-
-# # Dynamic plot
-# ordirgl(LakeNMDS)
-# orglspider(LakeNMDS, LakeMeta)
-# orgltext(MDS.all.3, rownames(fun.some))
 
 
 
