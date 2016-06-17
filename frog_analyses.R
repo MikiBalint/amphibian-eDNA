@@ -173,13 +173,46 @@ sum(SummedControlled[MetaHead$sci_name == "Homo sapiens",])
 sum(SummedControlled[MetaHead$sci_name %in% c("Micrathyria ocellata", "Libellulidae", 
                                             "Micrathyria", "Tramea"),])
 
+# Aggregate frog sequence variants according to the species 
+FrogAggregate = data.frame(name = MetaHead$sci_name[MetaHead$sci_name %in% Amphi], 
+                         SummedControlled[MetaHead$sci_name %in% Amphi,])
+FrogCounts = aggregate(. ~ name, FrogAggregate, sum, na.action = na.exclude)
+rownames(FrogCounts) = FrogCounts$name
+FrogCounts = FrogCounts[,2:96]
+
+# Remove taxa with no observations 
+# (can happen due to the cleanup steps on the sequence variants)
+FrogCounts = FrogCounts[apply(FrogCounts, 1, sum) != 0, ]
+
+# Generate site metadata from column names
+# Lake codes
+Lakes = substring(names(FrogCounts), 8, 9)
+
+# Site metadata
+SiteMeta = data.frame(Lakes = Lakes, Samples = names(FrogCounts))
+LakeCodes = c("T1", "T2", "T3", "T4", "T5")
+
+# Sum up species counts by sites
+FrogLakes = data.frame(row.names = rownames(FrogCounts))
+for (i in 1:length(LakeCodes)) {
+  ActualSet = grep(LakeCodes[i], names(FrogCounts))
+  FrogLakes = cbind(FrogLakes, apply(FrogCounts[ActualSet], 1, sum))
+}
+colnames(FrogLakes) = LakeCodes
+
+# Nice species table
+kable(cbind(FrogLakes, "Total (with controls)" = apply(FrogCounts, 1, sum)))
+
+# Positive controls
+
+
+
 # 
 
-# Aggregate sequence variants according to the species 
-ToAggregate = data.frame(name = MetaHead$sci_name, AbundControlled)
-SpeCounts = aggregate(. ~ name, ToAggregate, sum, na.action = na.exclude)
-rownames(SpeCounts) = SpeCounts$name
-SpeCounts = SpeCounts[,2:341]
+
+split2 = as.factor(sapply(strsplit(split1, split="A*$|B*$|C*$"), 
+                          function(x) (x[1])))
+
 
 # data frame of non-control samples
 # positive contols: 
