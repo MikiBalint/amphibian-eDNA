@@ -193,7 +193,13 @@ FrogCounts = FrogCounts[apply(FrogCounts, 1, sum) != 0, ]
 Lakes = substring(names(FrogCounts), 8, 9)
 
 # Site metadata
-SiteMeta = data.frame(Lakes = Lakes, Samples = names(FrogCounts))
+
+SiteMeta = data.frame(Lakes = Lakes, Samples = names(FrogCounts),
+                      Methods = c(rep(c("Control"),31), 
+                                  rep(c("A","B","C"),12),
+                                  rep("A",4), rep("B",4), rep("C",3),
+                                  rep("A",3), rep("B",3), rep("C",3),
+                                  rep("A",3), rep("B",3), rep("C",2)))
 LakeCodes = c("T1", "T2", "T3", "T4", "T5")
 
 # Sum up species counts by sites
@@ -209,10 +215,10 @@ kable(cbind(FrogLakes, "Total (with controls)" = apply(FrogCounts, 1, sum)))
 
 # Positive controls
 # PCE: DNA from 12 species in equal concentrations
-C.PCE = grep("sample.P.PCE", names(AbundControlled))
+C.PCE = grep("sample.P.PCE", names(FrogCounts))
 
 # PCUNE: DNA from 12 species in stepwise doubled concentrations
-C.PCUNE = grep("sample.P.PCUNE", names(AbundControlled))
+C.PCUNE = grep("sample.P.PCUNE", names(FrogCounts))
 
 # Species in the positiv control
 PosList = sort(c("Phyllomedusa azurea",
@@ -231,20 +237,25 @@ PosList = sort(c("Phyllomedusa azurea",
 # One of the 12 species (Hypsiboas geographicus) is not present in the PCE results.
 IsInPCE = cbind(PosList, PosList %in% rownames(FrogCounts))
 
-# 
-
-# Visualize conncentrations in the PCE. 
-# Load colors
+# Visualize conncentrations in the PCE. Lines are PCE samples.
 palette(colors())
-
 par(mar=c(8,4,1,1))
-plot(c(1:12), seq(0.1, log(max(AbundControlled[,C.PCE])), 
-                  log(max(AbundControlled[,C.PCE]))/12), type="n",
-     xaxt="n", xlab="", ylab="log(szekvenciák száma)")
+plot(c(1:12), seq(0.1, (max(FrogCounts[,C.PCE])), 
+                  (max(FrogCounts[,C.PCE]))/12), type="n",
+     xaxt="n", xlab="", ylab="Read numbers") 
 axis(1, at = c(1:12), labels = PosList, las = 2, cex.axis=0.6)
 for (i in C.PCE) {
-  lines(c(1:12), log(AbundControlled[PosList,i]), col=i, lwd=2)
+  lines(c(1:12), (FrogCounts[PosList,i]), col=i+10, lwd=2)
 }
+
+# All seven PCE samples are positively correlated at R > 0.7.
+
+# The PCUNE corrections come here.
+
+
+
+# Ecological signal: differences among the lakes VS preservation/extraction methods
+
 
 
 
