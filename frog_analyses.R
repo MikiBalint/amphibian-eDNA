@@ -180,6 +180,10 @@ FrogCounts = aggregate(. ~ name, FrogAggregate, sum, na.action = na.exclude)
 rownames(FrogCounts) = FrogCounts$name
 FrogCounts = FrogCounts[,2:96]
 
+# Correct the Scinax madeirae: Scinax sp. FB-2014a is actually S. madeirae
+# Species list
+rownames(FrogCounts)[34] <- "Scinax madeirae"
+
 # Remove taxa with no observations 
 # (can happen due to the cleanup steps on the sequence variants)
 FrogCounts = FrogCounts[apply(FrogCounts, 1, sum) != 0, ]
@@ -204,10 +208,54 @@ colnames(FrogLakes) = LakeCodes
 kable(cbind(FrogLakes, "Total (with controls)" = apply(FrogCounts, 1, sum)))
 
 # Positive controls
+# PCE: DNA from 12 species in equal concentrations
+C.PCE = grep("sample.P.PCE", names(AbundControlled))
+
+# PCUNE: DNA from 12 species in stepwise doubled concentrations
+C.PCUNE = grep("sample.P.PCUNE", names(AbundControlled))
+
+# Species in the positiv control
+PosList = sort(c("Phyllomedusa azurea",
+                 "Physalaemus centralis",
+                     "Hypsiboas geographicus",
+                     "Pseudopaludicola mystacalis",
+                     "Hypsiboas punctatus",
+                     "Leptodactylus fuscus",
+                     "Hypsiboas raniceps",
+                     "Pseudis limellum",
+                     "Leptodactylus podicipinus",
+                     "Scinax madeirae",
+                     "Dendropsophus leucophyllatus",
+                     "Dendropsophus nanus"))
+
+# One of the 12 species (Hypsiboas geographicus) is not present in the PCE results.
+IsInPCE = cbind(PosList, PosList %in% rownames(FrogCounts))
+
+# 
+
+# Visualize conncentrations in the PCE. 
+# Load colors
+palette(colors())
+
+par(mar=c(8,4,1,1))
+plot(c(1:12), seq(0.1, log(max(AbundControlled[,C.PCE])), 
+                  log(max(AbundControlled[,C.PCE]))/12), type="n",
+     xaxt="n", xlab="", ylab="log(szekvenciák száma)")
+axis(1, at = c(1:12), labels = PosList, las = 2, cex.axis=0.6)
+for (i in C.PCE) {
+  lines(c(1:12), log(AbundControlled[PosList,i]), col=i, lwd=2)
+}
+
+
+
 
 
 
 # 
+
+
+
+
 
 
 split2 = as.factor(sapply(strsplit(split1, split="A*$|B*$|C*$"), 
@@ -290,11 +338,7 @@ write.csv(file = "species-to-clear.csv", rbind(osteo,elach,pseud))
   
 
 
-# Species list
-SpecList = sort(unique(rownames(SpeCounts)))
 
-# Correct the Scinax madeirae 
-rownames(SpeCounts)[32] <- "Scinax madeirae"
 
 
 
@@ -374,37 +418,7 @@ ordiellipse(LakeNMDS, LakeMeta,cex=.5, draw="polygon", col=c("blue"),
 # orglspider(LakeNMDS, LakeMeta)
 # orgltext(MDS.all.3, rownames(fun.some))
 
-# Positiv equimolar controls
-IsPCE = grep("^..PCE", colnames(SpeCounts))
-PCEReads = t(SpeCounts[,IsPCE])
 
-# Species in the positiv control
-ConSpecList = sort(c("Phyllomedusa azurea",
-                "Physalaemus centralis",
-                "Hypsiboas geographicus",
-                "Pseudopaludicola mystacalis",
-                "Hypsiboas punctatus",
-                "Leptodactylus fuscus",
-                "Hypsiboas raniceps",
-                "Pseudis limellum",
-                "Leptodactylus podicipinus",
-                "Scinax madeirae",
-                "Dendropsophus leucophyllatus",
-                "Dendropsophus nanus"))
-
-# Not all species from the control are present in the dataset!!!
-IsInPCE = cbind(ConSpecList, ConSpecList %in% SpecList)
-
-# Load colors
-palette(colors())
-
-par(mar=c(8,4,1,1))
-plot(c(1:12), seq(0.1, log(max(SpeCounts[,IsPCE])), log(max(SpeCounts[,IsPCE]))/12), type="n",
-     xaxt="n", xlab="", ylab="log(szekvenciák száma)", ylim=c(3,10))
-axis(1, at = c(1:12), labels = ConSpecList, las = 2, cex.axis=0.6)
-for (i in IsPCE) {
-  lines(c(1:12), log(SpeCounts[ConSpecList,i]), col=i, lwd=2)
-}
 
 TotPresent = apply(LakeReads,2,function(vec) sum(vec>0))
 hist(TotPresent)
