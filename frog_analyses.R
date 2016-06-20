@@ -2,6 +2,7 @@ library(vegan)
 library(vegan3d)
 library(bvenn)
 library(knitr)
+library(boral)
 # library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
@@ -193,14 +194,14 @@ FrogCounts = FrogCounts[apply(FrogCounts, 1, sum) != 0, ]
 # Lake codes
 Lakes = substring(names(FrogCounts), 8, 9)
 
-# Site metadata
-
-SiteMeta = data.frame(Lakes = Lakes, Samples = names(FrogCounts),
+# Site metadata: lakes, preservation/extraction methods, read numbers
+SiteMeta = data.frame(Lakes = Lakes, 
                       Methods = c(rep(c("Control"),31), 
                                   rep(c("A","B","C"),12),
                                   rep("A",4), rep("B",4), rep("C",3),
                                   rep("A",3), rep("B",3), rep("C",3),
-                                  rep("A",3), rep("B",3), rep("C",2)))
+                                  rep("A",3), rep("B",3), rep("C",2)),
+                      Reads = apply(FrogCounts, 2, sum))
 LakeCodes = c("T1", "T2", "T3", "T4", "T5")
 
 # Sum up species counts by sites
@@ -298,45 +299,127 @@ ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="po
 # Model-based comparisons of the lakes
 FrogsMvabund = mvabund(FrogCountsT[SamplesNoZero & Samples,])
 
-m1 = manyglm(FrogsMvabund ~ Lakes + Methods, 
+# Multispecies GLM and ANOVA. Reads control for differences in sequencing depth.
+m1 = manyglm(FrogsMvabund ~ Reads + Lakes + Methods, 
              data=SiteMeta[SamplesNoZero & Samples,])
 m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
-
+# Increase nBoot=1000, and include p.uni for species-level statistics
+                 
 kable(m1.anova$table)
 
-
-# 
-
-
+# Model-based ordination
+ord.m <- boral(patho.some, family = "negative.binomial", num.lv = 2, n.burnin = 10, n.iteration = 100, n.thin = 1)
 
 
 
+# Preservation-extraction method evaluation with species occupancy models
+# Script from Thiery comes here.
 
-split2 = as.factor(sapply(strsplit(split1, split="A*$|B*$|C*$"), 
-                          function(x) (x[1])))
-
-
+# Format the data for SOM
+# !!! Should be updated.
 # data frame of non-control samples
 # positive contols: 
-C.PCE = grep("sample.P.PCE", names(SpeCounts))
-C.PCUNE = grep("sample.P.PCUNE", names(SpeCounts))
+# C.PCE = grep("sample.P.PCE", names(SpeCounts))
+# C.PCUNE = grep("sample.P.PCUNE", names(SpeCounts))
+# 
+# # negative controls: 
+# C.PNC = grep("sample.P.NC", names(SpeCounts))
+# C.NTC = grep("sample.NTC", names(SpeCounts))
+# C.NC = grep("sample.NC", names(SpeCounts))
+# C.MPX = grep("sample.MPX", names(SpeCounts))
+# 
+# Controls = c(C.PCE,C.PCUNE,C.PNC,C.NTC,C.NC,C.MPX)
+# 
+# # reads from lake observations
+# AbundLakes = SpeCounts[-Controls]
+# 
+# # Transform to presence-absences for species occupancy models
+# AbundSOM = AbundLakes
+# AbundSOM[AbundSOM > 0] <- 1
+# 
+# # write.csv(file = "SOM_data.csv", AbundSOM)
 
-# negative controls: 
-C.PNC = grep("sample.P.NC", names(SpeCounts))
-C.NTC = grep("sample.NTC", names(SpeCounts))
-C.NC = grep("sample.NC", names(SpeCounts))
-C.MPX = grep("sample.MPX", names(SpeCounts))
+# Results from Thierry
+# SOM1: all species modelled together - for a general comparison of the 
+# three preservation / extraction approaches.
+# psi = Pr(occupancy)
+# p = Pr(detection)
+# fp = Pr(flase pos.)
+# b = Pr(ambiguous detection occurs) == only 1 PCR positive / 4
+SOM1 = read.csv(file = "SOM/SOM_results1.csv", row.names = 1, header=T)
 
-Controls = c(C.PCE,C.PCUNE,C.PNC,C.NTC,C.NC,C.MPX)
+# Plot method effects
+# Detection probabilities per method
+pDetect = grep('^p\\(meth.\\)', rownames(SOM1))
+par(mfrow=c(2,1), mar=c(4,10,1,1))
+plot(SOM1[pDetect,"estimate"], c(3:1), xlim=c(min(SOM1$X2.5..CI[pDetect]),
+                                              max(SOM1$X97.5..CI[pDetect])), 
+     yaxt = "n", xlab = "Detection probability", ylab="", 
+     ylim=c(0.5,3.5), pch=19)
+segments(SOM1[pDetect,2], c(3:1), SOM1[pDetect,3], c(3:1))
+axis(2, at=c(3:1), label=c("GFF (2 um, in liquid: A)", 
+                           "GFF (2 um, dried: B)",
+                           "Nylon (0.2 um, dried: C)"), las=1)
 
-# reads from lake observations
-AbundLakes = SpeCounts[-Controls]
+# Plot method false positives
+# False positives per method
+pFPos = grep('^fp\\(meth.\\)', rownames(SOM1))
+plot(SOM1[pFPos,"estimate"], c(3:1), xlim=c(min(SOM1$X2.5..CI[pFPos]),
+                                              max(SOM1$X97.5..CI[pFPos])), 
+     yaxt = "n", xlab = "False positives", ylab="", 
+     ylim=c(0.5,3.5), pch=19)
+segments(SOM1[pFPos,2], c(3:1), SOM1[pFPos,3], c(3:1))
+axis(2, at=c(3:1), label=c("GFF (2 um, in liquid: A)", 
+                           "GFF (2 um, dried: B)",
+                           "Nylon (0.2 um, dried: C)"), las=1)
 
-# Transform to presence-absences for species occupancy models
-AbundSOM = AbundLakes
-AbundSOM[AbundSOM > 0] <- 1
+# SOM2: species modelled separately - for species-specific methodological differences
+# Detection probabilities for each species per method
+SOM2.p = read.csv(file = "SOM/SOM2_detection_prob.csv", row.names = 1, header=T)
 
-# write.csv(file = "SOM_data.csv", AbundSOM)
+# False positives, each species per method
+SOM2.fp = SOM2.p = read.csv(file = "SOM/SOM2_false_pos.csv", row.names = 1, header=T)
+
+# Coefficient plots
+par(mfrow=c(1,3), mar=c(4.1,1,0.5,0.5))
+plot(rep(0,nrow(SOM2.p)), c(nrow(SOM2.p):1), type="n", 
+     bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
+plot(SOM2.p[,"pA_estimate"], c(nrow(SOM2.p):1)-0.2, 
+     xlim=c(0,0.5), yaxt="n",
+     xlab="Detection probability", ylab="", pch=19, cex=0.5, 
+     ylim=c(nrow(SOM2.p),1))
+points(SOM2.p[,"pB_estimate"], c(nrow(SOM2.p):1), pch=17, cex=0.5)
+points(SOM2.p[,"pC_estimate"], c(nrow(SOM2.p):1)+0.2, pch=15, cex=0.5)
+segments(SOM2.p$pA_2.5..CI, c(nrow(SOM2.p):1)-0.2, 
+         SOM2.p$pA_97.5..CI, c(nrow(SOM2.p):1)-0.2)
+segments(SOM2.p$pB_2.5..CI, c(nrow(SOM2.p):1), 
+         SOM2.p$pB_97.5..CI, c(nrow(SOM2.p):1))
+segments(SOM2.p$pC_2.5..CI, c(nrow(SOM2.p):1)+0.2, 
+         SOM2.p$pC_97.5..CI, c(nrow(SOM2.p):1)+0.2)
+for(i in 1:nrow(SOM2.p)){
+  lines(c(-0,1), c(i,i)-0.5, lty="dotted")
+}
+axis(2, at=c(nrow(SOM2.p):1), label=rownames(SOM2.p), las=1, cex.axis=0.9,
+     tick=F)
+plot(SOM2.fp[,"pA_estimate"], c(nrow(SOM2.p):1)-0.2, 
+     xlim=c(0,0.5), yaxt="n",
+     xlab="False positives", ylab="", pch=19, cex=0.5, 
+     ylim=c(nrow(SOM2.p),1))
+points(SOM2.fp[,"pB_estimate"], c(nrow(SOM2.fp):1), pch=17, cex=0.5)
+points(SOM2.fp[,"pC_estimate"], c(nrow(SOM2.fp):1)+0.2, pch=15, cex=0.5)
+segments(SOM2.fp$pA_2.5..CI, c(nrow(SOM2.fp):1)-0.2, 
+         SOM2.fp$pA_97.5..CI, c(nrow(SOM2.fp):1)-0.2)
+segments(SOM2.fp$pB_2.5..CI, c(nrow(SOM2.fp):1), 
+         SOM2.fp$pB_97.5..CI, c(nrow(SOM2.fp):1))
+segments(SOM2.fp$pC_2.5..CI, c(nrow(SOM2.fp):1)+0.2, 
+         SOM2.fp$pC_97.5..CI, c(nrow(SOM2.fp):1)+0.2)
+for(i in 1:nrow(SOM2.p)){
+  lines(c(-0,1), c(i,i)-0.5, lty="dotted")
+}
+
+
+
+
 
 # Amphibians
 Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
