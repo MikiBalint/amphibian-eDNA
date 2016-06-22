@@ -1,8 +1,9 @@
 library(vegan)
-library(vegan3d)
+# library(vegan3d)
 library(bvenn)
 library(knitr)
 library(boral)
+library(mvabund)
 # library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
@@ -214,6 +215,90 @@ colnames(FrogLakes) = LakeCodes
 
 # Nice species table
 kable(cbind(FrogLakes, "Total (with controls)" = apply(FrogCounts, 1, sum)))
+
+#######
+# Venn diagrams (http://stackoverflow.com/questions/11722497/how-to-make-venn-diagrams-in-r)
+RegioList = c("Ameerega picta",
+              "Ceratophrys sp.",
+              "Chiasmocleis albopunctata",
+              "Dendropsophus cachimbo",
+              "Dendropsophus leali",
+              "Dendropsophus leucophyllatus",
+              "Dendropsophus melanargyreus",
+              "Dendropsophus minutus",
+              "Dendropsophus nanus",
+              "Dendropsophus salli",
+              "Dermatonotus muelleri",
+              "Elachistocleis sp.",
+              "Eupemphix nattereri",
+              "Hypsiboas geographicus",
+              "Hypsiboas punctatus",
+              "Hypsiboas raniceps",
+              "Leptodactylus cf. didymus",
+              "Leptodactylus cf. diptyx",
+              "Leptodactylus elenae",
+              "Leptodactylus fuscus",
+              "Leptodactylus leptodactyloides",
+              "Leptodactylus mystacinus",
+              "Leptodactylus syphax",
+              "Leptodactylus vastus",
+              "Oreobates heterodactylus",
+              "Osteocephalus taurinus",
+              "Phyllomedusa azurea",
+              "Phyllomedusa boliviana",
+              "Physalaemus centralis",
+              "Physalaemus albonotatus",
+              "Physalaemus cuvieri",
+              "Pseudis paradoxa",
+              "Pseudopaludicola mystacalis",
+              "Rhinella cf. paraguayensis",
+              "Rhinella schneideri",
+              "Rhinella mirandaribeiroi",
+              "Scinax fuscomarginatus",
+              "Scinax fuscovarius",
+              "Scinax madeirae",
+              "Scinax nasicus",
+              "Scinax ruber",
+              "Sphaenorhynchus lacteus",
+              "Trachycephalus cf. typhonius")
+#####           
+
+SurveyList = c("Dendropsophus leucophyllatus",
+               "Dendropsophus melanargyreus",
+               "Dendropsophus minutus",
+               "Dendropsophus nanus",
+               "Dendropsophus salli",
+               "Elachistocleis sp.",
+               "Eupemphix nattereri",
+               "Hypsiboas geographicus",
+               "Hypsiboas punctatus",
+               "Hypsiboas raniceps(d)",
+               "Leptodactylus fuscus",
+               "Leptodactylus syphax",
+               "Leptodactylus vastus",
+               "Phyllomedusa azurea",
+               "Phyllomedusa boliviana",
+               "Physalaemus albonotatus",
+               "Physalaemus centralis",
+               "Pseudis paradoxa(d)",
+               "Pseudopaludicola mystacalis",
+               "Sphaenorhynchus lacteus",
+               "Scinax fuscomarginatus",
+               "Scinax fuscovarius",
+               "Scinax madeirae",
+               "Scinax ruber",
+               "Scinax nasicus")
+
+eDNAList = rownames(FrogLakes)[apply(FrogLakes,1,sum) > 0]
+#####           
+
+# eDNA and multi-year regional species list
+bvenn(list(eDNA = eDNAList, "Multi-year\nobservations" = RegioList), 
+      fontsize=10)
+
+# eDNA and audio-visual survey list
+bvenn(list(eDNA = eDNAList, "Audio-visual\nsurvey" = SurveyList), 
+      fontsize=10)
 
 # Positive controls
 # PCE: DNA from 12 species in equal concentrations
@@ -520,85 +605,5 @@ write.csv(file="16S_R_filtered.csv", Heads16S)
 TotPresent = apply(LakeReads,2,function(vec) sum(vec>0))
 hist(TotPresent)
 
-# Venn diagrams (http://stackoverflow.com/questions/11722497/how-to-make-venn-diagrams-in-r)
-RegioList = c("Ameerega picta",
-#####           
-           "Ceratophrys sp.",
-           "Chiasmocleis albopunctata",
-           "Dendropsophus cachimbo",
-           "Dendropsophus leali",
-           "Dendropsophus leucophyllatus",
-           "Dendropsophus melanargyreus",
-           "Dendropsophus minutus",
-           "Dendropsophus nanus",
-           "Dendropsophus salli",
-           "Dermatonotus muelleri",
-           "Elachistocleis sp.",
-           "Eupemphix nattereri",
-           "Hypsiboas geographicus",
-           "Hypsiboas punctatus",
-           "Hypsiboas raniceps",
-           "Leptodactylus cf. didymus",
-           "Leptodactylus cf. diptyx",
-           "Leptodactylus elenae",
-           "Leptodactylus fuscus",
-           "Leptodactylus leptodactyloides",
-           "Leptodactylus mystacinus",
-           "Leptodactylus syphax",
-           "Leptodactylus vastus",
-           "Oreobates heterodactylus",
-           "Osteocephalus taurinus",
-           "Phyllomedusa azurea",
-           "Phyllomedusa boliviana",
-           "Physalaemus centralis",
-           "Physalaemus albonotatus",
-           "Physalaemus cuvieri",
-           "Pseudis paradoxa",
-           "Pseudopaludicola mystacalis",
-           "Rhinella cf. paraguayensis",
-           "Rhinella schneideri",
-           "Rhinella mirandaribeiroi",
-           "Scinax fuscomarginatus",
-           "Scinax fuscovarius",
-           "Scinax madeirae",
-           "Scinax nasicus",
-           "Scinax ruber",
-           "Sphaenorhynchus lacteus",
-           "Trachycephalus cf. typhonius")
-#####           
 
-SurveyList = c("Dendropsophus leucophyllatus",
-#####           
-               "Dendropsophus melanargyreus",
-               "Dendropsophus minutus",
-               "Dendropsophus nanus",
-               "Dendropsophus salli",
-               "Elachistocleis sp.",
-               "Eupemphix nattereri",
-               "Hypsiboas geographicus",
-               "Hypsiboas punctatus",
-               "Hypsiboas raniceps(d)",
-               "Leptodactylus fuscus",
-               "Leptodactylus syphax",
-               "Leptodactylus vastus",
-               "Phyllomedusa azurea",
-               "Phyllomedusa boliviana",
-               "Physalaemus albonotatus",
-               "Physalaemus centralis",
-               "Pseudis paradoxa(d)",
-               "Pseudopaludicola mystacalis",
-               "Sphaenorhynchus lacteus",
-               "Scinax fuscomarginatus",
-               "Scinax fuscovarius",
-               "Scinax madeirae",
-               "Scinax ruber",
-               "Scinax madeirae",
-               "Scinax nasicus")
-#####           
-
-# eDNA and regional species list
-bvenn(list(eDNS = SpecList, "Regionális felmérés" = RegioList), fontsize=18)
-
-# eDNA and survey list
-bvenn(list(eDNS = SpecList, "Helyi felmérés" = SurveyList), fontsize=18)
 
