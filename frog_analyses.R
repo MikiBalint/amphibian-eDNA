@@ -4,6 +4,8 @@ library(bvenn)
 library(knitr)
 library(boral)
 library(mvabund)
+library(geosphere)
+library(car)
 # library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
@@ -80,9 +82,9 @@ MaxControl = apply(AbundHead[,c(PNC,NTC,NC,MPX)], 1, max)
 
 # Extract the highest read number in a control from every sample
 # checks
-AbundHead[1:5,100:102]
-MaxControl[1:5]
-sweep(AbundHead[1:5,100:102], 1, MaxControl[1:5], "-")
+# AbundHead[1:5,100:102]
+# MaxControl[1:5]
+# sweep(AbundHead[1:5,100:102], 1, MaxControl[1:5], "-")
 
 AbundControlled = sweep(AbundHead, 1, MaxControl, "-")
 
@@ -337,24 +339,120 @@ for (i in C.PCE) {
 
 # All seven PCE samples are positively correlated at R > 0.7.
 
+###
 # The PCUNE corrections come here.
-
 
 # Ecological signal: differences among the lakes VS preservation/extraction methods
 # Transpose the frog counts: species in columns, samples in lines
 FrogCountsT = t(FrogCounts)
 
-# Some samples don't have reads at all:
-summary(apply(FrogCountsT,1,sum))
-
-# Keep only samples with reads
-SamplesNoZero = as.vector(apply(FrogCountsT,1,sum) != 0)
-
 # Filter for lake samples
 Samples = SiteMeta$Methods != "Control"
+FrogCountsLake = FrogCountsT[Samples,]
 
-# Samples that are lakes and have some reads:
-SiteMeta[SamplesNoZero & Samples,]
+
+# Some samples don't have reads at all, some species were not seen in lakes
+summary(apply(FrogCountsLake,1,sum))
+summary(apply(FrogCountsLake,2,sum))
+
+# Meaningful species matrix for lakes
+FrogCountsNoZero = FrogCountsLake[apply(FrogCountsLake,1,sum) > 0,
+                                  apply(FrogCountsLake,2,sum) > 0]
+
+# Corresponding metadata
+MetaLakesNoZero = SiteMeta[rownames(SiteMeta) %in% rownames(FrogCountsNoZero),]
+
+# Remove species present in only one sample
+FrogCountsNoOne = FrogCountsNoZero[,apply(FrogCountsNoZero,2,function(vec) sum(vec>0)) > 1]
+
+# still species in every sample?
+apply(FrogCountsNoOne,1,sum)
+
+# Model-based comparison of the lakes
+FrogsMvabund = mvabund(FrogCountsNoOne)
+
+# Multispecies GLM and ANOVA. Reads control for differences in sequencing depth.
+m1 = manyglm(FrogsMvabund ~ Reads + Lakes + Methods, 
+             data=MetaLakesNoZero)
+
+# Increase nBoot=1000, and include p.uni for species-level statistics
+m1.anova = anova(m1, nBoot = 50) #, p.uni = "adjusted")
+
+m1.summary = summary(m1, nBoot = 10)
+
+# nice anova table
+kable(m1.anova$table)
+
+# Visualize the community results
+# Model-based ordination with reads as covariates
+
+# Overdispersion parameter
+summary(m1$theta)
+hist(m1$theta)
+
+set.prior = set.prior <- list(type = c("normal","normal","normal","uniform"),
+                              hypparams = c(100, 20, 100, 1))
+
+# Unconstrained ordination
+# ord.m.noconst <- boral(FrogCountsNoOne, family = "negative.binomial", num.lv = 2,
+#                        prior.control = set.prior,
+#                        n.burnin = 10, n.iteration = 100, n.thin = 1)
+# 
+# par(mfrow = c(2,2))
+# plot(ord.m.noconst)
+
+# Constrained ordination with sequencing depth
+# Just keep the old 2 LV plot
+ord.m.const <- boral(FrogCountsNoOne, X=MetaLakesNoZero$Reads, 
+                         prior.control = set.prior,
+                         family = "negative.binomial", num.lv = 2, 
+                         n.burnin = 10, n.iteration = 100, n.thin = 1)
+
+# Diagnostics
+par(mfrow = c(2,2))
+plot(ord.m.const)
+
+# Colors for ordination
+palette(colors())
+LakeCol = gsub("T1", "green", MetaLakesNoZero$Lakes)
+LakeCol = gsub("T2", "orange", LakeCol)
+LakeCol = gsub("T3", "red", LakeCol)
+LakeCol = gsub("T4", "purple", LakeCol)
+LakeCol = gsub("T5", "blue", LakeCol)
+MyColors = data.frame(cols = c("green","orange","red","purple","blue"),
+                      lakes = levels(factor(MetaLakesNoZero$Lakes)))
+
+# Constrained ordination plot
+par(mfrow=c(1,1), mar=c(4,4,3,1), oma=c(1,1,0,0))
+
+plot(ord.m.const$lv.median, col=LakeCol, 
+     pch=19, main="Constrained LV ordination", las=1, xlab = "LV1", ylab = "LV2")
+legend(-6.5, 5, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", 
+                  "Wetland Centro"), fill=as.vector(MyColors$cols), 
+       border="white", bty="n")
+for (i in levels(factor(MetaLakesNoZero$Lakes))) {
+  ellipse(center = c(mean(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,"LV1"]), 
+                     mean(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,"LV2"])),
+          shape = cov(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,]),
+          radius = 0.95*mean(std.error(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,])), 
+          add=T, col=as.vector(MyColors$cols[MyColors$lakes == i]))
+}
+
+
+# Unconstrained ordination plot
+# plot(ord.m.noconst$lv.median, col=LakeCol, 
+#      pch=19, main="Unconstrained LV ordination", las=1, xlab = "LV1", ylab = "LV2")
+# legend(-6.5, 2, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", 
+#                   "Wetland Centro"), fill=as.vector(MyColors$cols), 
+#        border="white", bty="n")
+# for (i in levels(factor(MetaLakesNoZero$Lakes))) {
+#   ellipse(center = c(mean(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,"LV1"]), 
+#                      mean(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,"LV2"])),
+#           shape = cov(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,]),
+#           radius = 0.95*mean(std.error(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,])), 
+#           add=T, col=as.vector(MyColors$cols[MyColors$lakes == i]))
+# }
+
 
 # Distribution of read abundances
 hist(apply(FrogCountsT,2,sum), nclass=20, col="grey", 
@@ -381,19 +479,9 @@ ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="po
 ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("blue"),
             alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
 
-# Model-based comparisons of the lakes
-FrogsMvabund = mvabund(FrogCountsT[SamplesNoZero & Samples,])
 
-# Multispecies GLM and ANOVA. Reads control for differences in sequencing depth.
-m1 = manyglm(FrogsMvabund ~ Reads + Lakes + Methods, 
-             data=SiteMeta[SamplesNoZero & Samples,])
-m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
-# Increase nBoot=1000, and include p.uni for species-level statistics
-                 
-kable(m1.anova$table)
 
-# Model-based ordination
-ord.m <- boral(patho.some, family = "negative.binomial", num.lv = 2, n.burnin = 10, n.iteration = 100, n.thin = 1)
+
 
 
 
