@@ -13,20 +13,32 @@ OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
 EmblAssign = read.csv(file="abundances/frogs_16S_EMBL.tab", sep="\t",
                       header=T, row.names=1)
 
-# Remove sequences from the 12S experiments
+# Remove sequences from the 12S experiment. This expereriment 
+# was multiplexed into the sequencing run of the current
+# project, but it is not analyzed here.
 EmblAssign = EmblAssign[EmblAssign[,"experiment"] == "16S",]
 
 # Metadata
 MetaOwn = data.frame(best_id = OwnAssign$best_identity.16S_fasta_nonredundant_noprimers,
-                best_match = OwnAssign$best_match, count = OwnAssign$count, family = OwnAssign$family_name,
-                genus = OwnAssign$genus_name, sci_name = OwnAssign$scientific_name, 
-                taxid = OwnAssign$taxid, sequence = OwnAssign$sequence,
-                seq_names = rownames(OwnAssign), row.names=9)
+                best_match = OwnAssign$best_match, 
+                count = OwnAssign$count, 
+                family = OwnAssign$family_name,
+                genus = OwnAssign$genus_name, 
+                sci_name = OwnAssign$scientific_name, 
+                taxid = OwnAssign$taxid, 
+                sequence = OwnAssign$sequence,
+                seq_names = rownames(OwnAssign), 
+                row.names=9)
 MetaEmbl = data.frame(best_id = EmblAssign$best_identity.db_16S,
-                      best_match = EmblAssign$best_match, count = EmblAssign$count, family = EmblAssign$family_name,
-                      genus = EmblAssign$genus_name, sci_name = EmblAssign$scientific_name, 
-                      taxid = EmblAssign$taxid, sequence = EmblAssign$sequence,
-                      seq_names = rownames(EmblAssign), row.names=9)
+                      best_match = EmblAssign$best_match, 
+                      count = EmblAssign$count, 
+                      family = EmblAssign$family_name,
+                      genus = EmblAssign$genus_name, 
+                      sci_name = EmblAssign$scientific_name, 
+                      taxid = EmblAssign$taxid, 
+                      sequence = EmblAssign$sequence,
+                      seq_names = rownames(EmblAssign), 
+                      row.names=9)
 MetaAll = rbind(MetaOwn, MetaEmbl)
 
 # Obiclean status files
@@ -43,7 +55,7 @@ MetaAll = data.frame(MetaAll,
                      s_count = rowSums(StatusAll == "s", na.rm=T), 
                      i_count = rowSums(StatusAll == "i", na.rm=T))
 
-# Abundances
+# Abundances matrices
 AbundOwn = OwnAssign[, grepl("sample", colnames(OwnAssign))]
 AbundEmbl = EmblAssign[, grepl("sample", names(EmblAssign))]
 
@@ -85,7 +97,6 @@ MaxControl = apply(AbundHead[,c(PNC,NTC,NC,MPX)], 1, max)
 # AbundHead[1:5,100:102]
 # MaxControl[1:5]
 # sweep(AbundHead[1:5,100:102], 1, MaxControl[1:5], "-")
-
 AbundControlled = sweep(AbundHead, 1, MaxControl, "-")
 
 AbundControlled[AbundControlled < 0] <- 0
@@ -159,14 +170,24 @@ Mammal = c("Homo sapiens", "Canis", "Sus scrofa", "Mus", "Bos", "Capreolus capre
            "Myotis", "Laurasiatheria")
 
 # Proportions of different groups
+par(mar=c(1,1,1,1))
 pie(c(sum(SummedControlled[MetaHead$sci_name %in% Amphi,]), 
       sum(SummedControlled[MetaHead$sci_name %in% Mammal,]),
       sum(SummedControlled[MetaHead$sci_name %in% Fish,]),
       sum(SummedControlled[MetaHead$sci_name %in% Insect,]),
       sum(SummedControlled[MetaHead$sci_name %in% Bird,]),
       sum(SummedControlled[MetaHead$sci_name %in% HighGroup,])),
-    labels = c("Frogs", "Mammal", "Fish", "Insect", "Bird", "Higher groups"),
+    labels = paste(c("Frogs\n2 198 212", "Mammals\n38 568", 
+                     "Fish\n1 873 599", "Insects\n314 910", 
+                     "Birds\n4 785", "Higher groups\n1 384 940")),
     col = c(gray(0.9), gray(0.75), gray(0.60), gray(0.45), gray(0.30), gray(0.15)))
+
+sum(SummedControlled[MetaHead$sci_name %in% Amphi,])+ 
+sum(SummedControlled[MetaHead$sci_name %in% Mammal,])+
+sum(SummedControlled[MetaHead$sci_name %in% Fish,])+
+sum(SummedControlled[MetaHead$sci_name %in% Insect,])+
+sum(SummedControlled[MetaHead$sci_name %in% Bird,])+
+sum(SummedControlled[MetaHead$sci_name %in% HighGroup,])
 
 # Farm animals:
 sum(SummedControlled[MetaHead$sci_name %in% FarmAnim,])
@@ -337,11 +358,66 @@ for (i in C.PCE) {
   lines(c(1:12), (FrogCounts[PosList,i]), col=i+10, lwd=2)
 }
 
-# All seven PCE samples are positively correlated at R > 0.7.
+# The seven PCE samples are positively correlated at R > 0.7.
 
-###
-# The PCUNE corrections come here.
+# Correction factors for PCE (obsolate)
+# PCEConc = 5 #ng/ul
+# PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
+# 
+# #  the mean abundance of the species in PCE with 1x dilution 
+# # in PCUNE should correspond the  5 ng/ul conc: Phyllomedusa azurea
+# mean(as.numeric(FrogCounts["Phyllomedusa azurea", C.PCE]))
+# 
+# # Divide this by all abundances of control species to get the correction factor
+# CorrectFactor = mean(as.numeric(FrogCounts["Phyllomedusa azurea", C.PCE])) /
+#   apply(FrogCounts[PosList,],1,mean)
+# 
+# # Corrected PCE abundances
+# FrogCountsCorrected = FrogCounts[PosList,] * CorrectFactor
+# apply(FrogCountsCorrected, 1, sum)
 
+# Evaluation of non-equimolar concentrations and read numbers
+# Correlations with the original DNA concentrations
+# PCUNE abundances VS original concentrations
+
+RangeX = range(PCEUNEConc[,"conc"])
+RangeY = range(apply(FrogCounts[,C.PCUNE],1,mean))
+
+par(mfrow = c(1,1), mar=c(4,4,3,1))
+plot(RangeX, RangeY, type="n", xlab="DNA concentrations", ylab = "Read numbers", 
+     log="x", main = "Positiv non-equimolar controls")
+for (i in PosList[PosList != "Hypsiboas geographicus"]){
+  points(PCEUNEConc[i,"conc"], mean(as.numeric(FrogCounts[i,C.PCUNE])), 
+         pch=19)
+}
+
+# Correlation of concentrations and read numbers in the PCUNE
+ConcMeanRead = data.frame()
+for (i in PosList[PosList != "Hypsiboas geographicus"]){
+  ConcRead = c(PCEUNEConc[i,"conc"], mean(as.numeric(FrogCounts[i,C.PCUNE])),
+               mean(as.numeric(FrogCounts[i,C.PCE])))
+  ConcMeanRead = rbind(ConcMeanRead, ConcRead)
+}
+colnames(ConcMeanRead) = c("conc", "MeanReadPCUNE", "MeanReadPCE")
+rownames(ConcMeanRead) = PosList[PosList != "Hypsiboas geographicus"]
+
+cor(ConcMeanRead, method = "pearson")
+
+
+# Visualize conncentrations in the PCE. Lines are PCE samples.
+palette(colors())
+par(mar=c(8,4,1,1))
+plot(c(1:11), seq(0.1, (max(FrogCountsCorrected[,C.PCE])), 
+                  (max(FrogCountsCorrected[,C.PCE]))/11), type="n",
+     xaxt="n", xlab="", ylab="Read numbers") 
+axis(1, at = c(1:11), labels = PosList[PosList != "Hypsiboas geographicus"], las = 2, cex.axis=0.6)
+for (i in C.PCE) {
+  lines(c(1:11), (FrogCountsCorrected[PosList != "Hypsiboas geographicus",i]), col=i+10, lwd=2)
+}
+
+
+
+#####
 # Ecological signal: differences among the lakes VS preservation/extraction methods
 # Transpose the frog counts: species in columns, samples in lines
 FrogCountsT = t(FrogCounts)
@@ -376,9 +452,9 @@ m1 = manyglm(FrogsMvabund ~ Reads + Lakes + Methods,
              data=MetaLakesNoZero)
 
 # Increase nBoot=1000, and include p.uni for species-level statistics
-m1.anova = anova(m1, nBoot = 50) #, p.uni = "adjusted")
+m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
 
-m1.summary = summary(m1, nBoot = 10)
+m1.summary = summary(m1, nBoot = 1000, p.uni="adjusted")
 
 # nice anova table
 kable(m1.anova$table)
