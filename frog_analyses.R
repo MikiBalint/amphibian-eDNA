@@ -451,7 +451,7 @@ m1 = manyglm(FrogsMvabund ~ Reads + Lakes,
              data=MetaLakesNoZero)
 
 # Increase nBoot=1000, and include p.uni for species-level statistics
-m1.anova = anova(m1, nBoot = 50, p.uni = "adjusted")
+m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
 
 # nice anova table
 kable(m1.anova$table)
@@ -497,20 +497,33 @@ MyColors = data.frame(cols = c("green","orange","red","purple","blue"),
 
 # Constrained ordination plot
 par(mfrow=c(1,1), mar=c(4,4,3,1), oma=c(1,1,0,0))
-
-plot(ord.m.const$lv.median, col=LakeCol, 
-     pch=19, main="Constrained LV ordination", las=1, xlab = "LV1", ylab = "LV2")
-legend(-6.5, 5, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", 
-                  "Wetland Centro"), fill=as.vector(MyColors$cols), 
-       border="white", bty="n")
-for (i in levels(factor(MetaLakesNoZero$Lakes))) {
-  ellipse(center = c(mean(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,"LV1"]), 
-                     mean(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,"LV2"])),
-          shape = cov(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,]),
-          radius = 0.95*mean(std.error(ord.m.const$lv.median[MetaLakesNoZero$Lakes == i,])), 
-          add=T, col=as.vector(MyColors$cols[MyColors$lakes == i]))
-}
-
+ordifrog= ordiplot(ord.m.const$lv.median, type = "none", cex =0.5 
+                   ,display = "sites", xlim = c(-4,3),
+                   main="Constrained LV ordination")
+points(ordifrog,"sites", pch=20 ,col=LakeCol)
+legend(2, 5, paste(c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", 
+                  "Wetland Centro")), fill=as.vector(MyColors$cols), 
+       border="white", bty="n", cex=0.7)
+ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
+                         draw="polygon", col="green",
+                         alpha=100,kind="se",conf=0.95, 
+                         show.groups=(c("T1")))
+ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
+            draw="polygon", col="orange",
+            alpha=100,kind="se",conf=0.95, 
+            show.groups=(c("T2")))
+ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
+            draw="polygon", col="red",
+            alpha=100,kind="se",conf=0.95, 
+            show.groups=(c("T3")))
+ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
+            draw="polygon", col="purple",
+            alpha=100,kind="se",conf=0.95, 
+            show.groups=(c("T4")))
+ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
+            draw="polygon", col="blue",
+            alpha=100,kind="se",conf=0.95, 
+            show.groups=(c("T5")))
 
 # Unconstrained ordination plot
 # plot(ord.m.noconst$lv.median, col=LakeCol, 
@@ -533,28 +546,28 @@ hist(apply(FrogCountsT,2,sum), nclass=20, col="grey",
      xlab="Read counts per species", ylab="Frequency")
 
 # Simple NMDS plot
-LakeNMDS = metaMDS(FrogCountsT[SamplesNoZero & Samples,])
-
-par(mar=c(4,4,1,1))
-plot(LakeNMDS$points, type="n", xlab="NMDS1", ylab="NMDS2")
-ordispider(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"], col="grey")
-points(LakeNMDS, pch=20)
-mylegend = legend(-3.3, 3, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
-                  fill=c("orange","green","purple","red","blue"), border="white", bty="n")
-ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", 
-            col=c("orange"), alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
-ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("green"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T2")))
-ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("purple"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T3")))
-ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("red"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T4")))
-ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("blue"),
-            alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
-
-
-
-
+# LakeNMDS = metaMDS(FrogCountsT[SamplesNoZero & Samples,])
+# 
+# par(mar=c(4,4,1,1))
+# plot(LakeNMDS$points, type="n", xlab="NMDS1", ylab="NMDS2")
+# ordispider(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"], col="grey")
+# points(LakeNMDS, pch=20)
+# mylegend = legend(-3.3, 3, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
+#                   fill=c("orange","green","purple","red","blue"), border="white", bty="n")
+# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", 
+#             col=c("orange"), alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
+# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("green"),
+#             alpha=170,kind="se",conf=0.95, show.groups=(c("T2")))
+# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("purple"),
+#             alpha=170,kind="se",conf=0.95, show.groups=(c("T3")))
+# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("red"),
+#             alpha=170,kind="se",conf=0.95, show.groups=(c("T4")))
+# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("blue"),
+#             alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
+# 
+# 
+# 
+# 
 
 
 
