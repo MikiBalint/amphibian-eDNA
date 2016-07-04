@@ -111,7 +111,6 @@ SampleNames = levels(as.factor(sapply(strsplit(names(AbundControlled),
                                       function(x) (x[1]))))
 
 # Sum the replicates for each sample
-# Any suggestions are welcome to avoid the loop!!!
 SummedReps = data.frame(row.names = rownames(AbundControlled))
 for (i in 1:length(SampleNames)){
   ActualSet = grep(SampleNames[i], names(AbundControlled)) # grep the columns of interest
@@ -154,9 +153,9 @@ Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
 HighGroup = c("root", "Bilateria", "Amniota")
 
 FarmAnim = c("Canis", "Sus scrofa", "Gallus", "Mus", "Bos", "Capreolus capreolus")
-write.csv(file = "other_taxa.csv", 
-          MetaHead$sci_name[!MetaHead$sci_name %in% 
-                              c(Amphi, HighGroup, "Homo sapiens", FarmAnim)])
+# write.csv(file = "other_taxa.csv", 
+#           MetaHead$sci_name[!MetaHead$sci_name %in% 
+#                               c(Amphi, HighGroup, "Homo sapiens", FarmAnim)])
 
 Bird = c("Meleagris gallopavo", "Jacana", "Gallus")
 
@@ -361,8 +360,8 @@ for (i in C.PCE) {
 # The seven PCE samples are positively correlated at R > 0.7.
 
 # Correction factors for PCE (obsolate)
-# PCEConc = 5 #ng/ul
-# PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
+PCEConc = 5 #ng/ul
+PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
 # 
 # #  the mean abundance of the species in PCE with 1x dilution 
 # # in PCUNE should correspond the  5 ng/ul conc: Phyllomedusa azurea
@@ -404,16 +403,16 @@ rownames(ConcMeanRead) = PosList[PosList != "Hypsiboas geographicus"]
 cor(ConcMeanRead, method = "pearson")
 
 
-# Visualize conncentrations in the PCE. Lines are PCE samples.
-palette(colors())
-par(mar=c(8,4,1,1))
-plot(c(1:11), seq(0.1, (max(FrogCountsCorrected[,C.PCE])), 
-                  (max(FrogCountsCorrected[,C.PCE]))/11), type="n",
-     xaxt="n", xlab="", ylab="Read numbers") 
-axis(1, at = c(1:11), labels = PosList[PosList != "Hypsiboas geographicus"], las = 2, cex.axis=0.6)
-for (i in C.PCE) {
-  lines(c(1:11), (FrogCountsCorrected[PosList != "Hypsiboas geographicus",i]), col=i+10, lwd=2)
-}
+# # Visualize conncentrations in the PCE. Lines are PCE samples.
+# palette(colors())
+# par(mar=c(8,4,1,1))
+# plot(c(1:11), seq(0.1, (max(FrogCountsCorrected[,C.PCE])), 
+#                   (max(FrogCountsCorrected[,C.PCE]))/11), type="n",
+#      xaxt="n", xlab="", ylab="Read numbers") 
+# axis(1, at = c(1:11), labels = PosList[PosList != "Hypsiboas geographicus"], las = 2, cex.axis=0.6)
+# for (i in C.PCE) {
+#   lines(c(1:11), (FrogCountsCorrected[PosList != "Hypsiboas geographicus",i]), col=i+10, lwd=2)
+# }
 
 
 
@@ -442,19 +441,17 @@ MetaLakesNoZero = SiteMeta[rownames(SiteMeta) %in% rownames(FrogCountsNoZero),]
 FrogCountsNoOne = FrogCountsNoZero[,apply(FrogCountsNoZero,2,function(vec) sum(vec>0)) > 1]
 
 # still species in every sample?
-apply(FrogCountsNoOne,1,sum)
+summary(apply(FrogCountsNoOne,1,sum))
 
 # Model-based comparison of the lakes
 FrogsMvabund = mvabund(FrogCountsNoOne)
 
 # Multispecies GLM and ANOVA. Reads control for differences in sequencing depth.
-m1 = manyglm(FrogsMvabund ~ Reads + Lakes + Methods, 
+m1 = manyglm(FrogsMvabund ~ Reads + Lakes, 
              data=MetaLakesNoZero)
 
 # Increase nBoot=1000, and include p.uni for species-level statistics
-m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
-
-m1.summary = summary(m1, nBoot = 1000, p.uni="adjusted")
+m1.anova = anova(m1, nBoot = 50, p.uni = "adjusted")
 
 # nice anova table
 kable(m1.anova$table)
