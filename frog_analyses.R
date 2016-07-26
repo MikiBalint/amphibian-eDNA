@@ -13,6 +13,9 @@ OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
 EmblAssign = read.csv(file="abundances/frogs_16S_EMBL.tab", sep="\t",
                       header=T, row.names=1)
 
+# Searches for particular taxa and species, example:
+OwnAssign[OwnAssign$scientific_name == "Leptodactylus chaquensis",]
+
 # Remove sequences from the 12S experiment. This expereriment 
 # was multiplexed into the sequencing run of the current
 # project, but it is not analyzed here.
@@ -209,6 +212,13 @@ FrogCounts = FrogCounts[,2:96]
 # Species list
 rownames(FrogCounts)[34] <- "Scinax madeirae"
 
+# Remove ambiguous assignments:
+ambiguous = c("Hylinae", "Hylidae", "Hyloidea", "Leptodactylus", "Osteocephalus",
+              "Bufonidae", "Gastrophryninae", "Pseudis", "Scinax")
+
+# Species per sample dataset without ambiguous identifications
+FrogCounts = FrogCounts[!(rownames(FrogCounts) %in% ambiguous),]
+
 # Remove taxa with no observations 
 # (can happen due to the cleanup steps on the sequence variants)
 FrogCounts = FrogCounts[apply(FrogCounts, 1, sum) != 0, ]
@@ -227,64 +237,57 @@ SiteMeta = data.frame(Lakes = Lakes,
                       Reads = apply(FrogCounts, 2, sum))
 LakeCodes = c("T1", "T2", "T3", "T4", "T5")
 
-# Sum up species counts by sites
-FrogLakes = data.frame(row.names = rownames(FrogCounts))
+# Grep names of all samples. Sample names are in the 'lakeCodes'
+IsLakeSample = grep(paste(LakeCodes, collapse='|'), 
+                    names(FrogCounts), ignore.case=TRUE)
+
+# Create read abundance table for frog species found in the ponds
+FrogsInLakes = FrogCounts[,IsLakeSample]
+FrogsInLakes = FrogsInLakes[apply(FrogsInLakes,1,sum) > 0,]
+
+# Sum up species counts by lakes
+FrogLakes = data.frame(row.names = rownames(FrogsInLakes))
 for (i in 1:length(LakeCodes)) {
-  ActualSet = grep(LakeCodes[i], names(FrogCounts))
-  FrogLakes = cbind(FrogLakes, apply(FrogCounts[ActualSet], 1, sum))
+  ActualSet = grep(LakeCodes[i], names(FrogsInLakes))
+  FrogLakes = cbind(FrogLakes, apply(FrogsInLakes[ActualSet], 1, sum))
 }
 colnames(FrogLakes) = LakeCodes
 
-# Nice species table
-kable(cbind(FrogLakes, "Total (with controls)" = apply(FrogCounts, 1, sum)))
+write.csv(file="Frog_sums_ponds.csv", 
+          cbind(FrogLakes, Total = apply(FrogLakes,1,sum)))
+
+# Total eDNA detected species in a lake
+apply(FrogLakes,2,function(x) sum(x>0))
+
+# Get positive samples + the field negative tapwater sample
+FieldCodes = c("Cen", "Lvastus")
+PositiveCodes = c("PCE", "PCUNE")
+
+# Grep names of positive and field tap water samples. 
+# Sample names are in the 'lakeCodes'
+IsPosField = grep(paste(c(FieldCodes, PositiveCodes), collapse='|'), 
+                    names(FrogCounts), ignore.case=TRUE)
+
+# Create read abundance table for frog species found in the ponds
+FrogsInPosField = FrogCounts[,IsPosField]
+FrogsInPosField = FrogsInPosField[apply(FrogsInPosField,1,sum) > 0,]
+
+# Sum up species counts by positive and field controls
+FrogPosField = data.frame(row.names = rownames(FrogsInPosField))
+for (i in 1:length(c(FieldCodes, PositiveCodes))) {
+  ActualSet = grep(c(FieldCodes, PositiveCodes)[i], names(FrogsInPosField))
+  FrogPosField = cbind(FrogPosField, apply(FrogsInPosField[ActualSet], 1, sum))
+}
+colnames(FrogPosField) = c(FieldCodes, PositiveCodes)
+
+# 
+write.csv(file="Frog_sums_FieldPos.csv", FrogPosField)
+
+# Total eDNA detected species in a lake
+apply(FrogPosField,2,function(x)sum(x > 0))
 
 #######
 # Venn diagrams (http://stackoverflow.com/questions/11722497/how-to-make-venn-diagrams-in-r)
-RegioList = c("Ameerega picta",
-              "Ceratophrys sp.",
-              "Chiasmocleis albopunctata",
-              "Dendropsophus cachimbo",
-              "Dendropsophus leali",
-              "Dendropsophus leucophyllatus",
-              "Dendropsophus melanargyreus",
-              "Dendropsophus minutus",
-              "Dendropsophus nanus",
-              "Dendropsophus salli",
-              "Dermatonotus muelleri",
-              "Elachistocleis sp.",
-              "Eupemphix nattereri",
-              "Hypsiboas geographicus",
-              "Hypsiboas punctatus",
-              "Hypsiboas raniceps",
-              "Leptodactylus cf. didymus",
-              "Leptodactylus cf. diptyx",
-              "Leptodactylus elenae",
-              "Leptodactylus fuscus",
-              "Leptodactylus leptodactyloides",
-              "Leptodactylus mystacinus",
-              "Leptodactylus syphax",
-              "Leptodactylus vastus",
-              "Oreobates heterodactylus",
-              "Osteocephalus taurinus",
-              "Phyllomedusa azurea",
-              "Phyllomedusa boliviana",
-              "Physalaemus centralis",
-              "Physalaemus albonotatus",
-              "Physalaemus cuvieri",
-              "Pseudis paradoxa",
-              "Pseudopaludicola mystacalis",
-              "Rhinella cf. paraguayensis",
-              "Rhinella schneideri",
-              "Rhinella mirandaribeiroi",
-              "Scinax fuscomarginatus",
-              "Scinax fuscovarius",
-              "Scinax madeirae",
-              "Scinax nasicus",
-              "Scinax ruber",
-              "Sphaenorhynchus lacteus",
-              "Trachycephalus cf. typhonius")
-#####           
-
 SurveyList = c("Dendropsophus leucophyllatus",
                "Dendropsophus melanargyreus",
                "Dendropsophus minutus",
@@ -312,11 +315,6 @@ SurveyList = c("Dendropsophus leucophyllatus",
                "Scinax nasicus")
 
 eDNAList = rownames(FrogLakes)[apply(FrogLakes,1,sum) > 0]
-#####           
-
-# eDNA and multi-year regional species list
-bvenn(list(eDNA = eDNAList, "Multi-year\nobservations" = RegioList), 
-      fontsize=10)
 
 # eDNA and audio-visual survey list
 bvenn(list(eDNA = eDNAList, "Audio-visual\nsurvey" = SurveyList), 
@@ -501,9 +499,8 @@ ordifrog= ordiplot(ord.m.const$lv.median, type = "none", cex =0.5
                    ,display = "sites", xlim = c(-4,3),
                    main="Constrained LV ordination")
 points(ordifrog,"sites", pch=20 ,col=LakeCol)
-legend(2, 5, paste(c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", 
-                  "Wetland Centro")), fill=as.vector(MyColors$cols), 
-       border="white", bty="n", cex=0.7)
+legend(5, -2, paste(c("T1", "T2", "T3", "T4", "T5")), fill=as.vector(MyColors$cols), 
+       border="white", bty="n")
 ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
                          draw="polygon", col="green",
                          alpha=100,kind="se",conf=0.95, 
