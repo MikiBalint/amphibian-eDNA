@@ -4,7 +4,7 @@ library(bvenn)
 library(knitr)
 library(boral)
 library(mvabund)
-library(geosphere)
+# library(geosphere)
 library(car)
 # library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
@@ -69,6 +69,8 @@ AbundAll = rbind(AbundOwn, AbundEmbl)
 # Sequnce variant abundances at least once head
 AbundHead = AbundAll[MetaAll$h_count > 0,]
 MetaHead = MetaAll[MetaAll$h_count > 0,]
+
+write.csv(file="AbundHead.csv", AbundHead)
 
 # 160525 clean up negative controls: remove the maximum read number of a 
 # sequence variant found in a negative control from every sample that 
@@ -297,15 +299,18 @@ SurveyList = c("Dendropsophus leucophyllatus",
                "Eupemphix nattereri",
                "Hypsiboas geographicus",
                "Hypsiboas punctatus",
-               "Hypsiboas raniceps(d)",
+               "Hypsiboas raniceps",
                "Leptodactylus fuscus",
                "Leptodactylus syphax",
                "Leptodactylus vastus",
+               "Leptodactylus chaquensis",
+               "Osteocephalus taurinus",
                "Phyllomedusa azurea",
                "Phyllomedusa boliviana",
                "Physalaemus albonotatus",
                "Physalaemus centralis",
-               "Pseudis paradoxa(d)",
+               "Pseudis paradoxa",
+               "Pseudis laevis",
                "Pseudopaludicola mystacalis",
                "Sphaenorhynchus lacteus",
                "Scinax fuscomarginatus",
@@ -314,11 +319,17 @@ SurveyList = c("Dendropsophus leucophyllatus",
                "Scinax ruber",
                "Scinax nasicus")
 
+InWaterList = read.csv(file = "abundances/frogs_in_water.csv", header = F)
+InWaterList = levels(c(InWaterList)$V1)
+
 eDNAList = rownames(FrogLakes)[apply(FrogLakes,1,sum) > 0]
 
 # eDNA and audio-visual survey list
 bvenn(list(eDNA = eDNAList, "Audio-visual\nsurvey" = SurveyList), 
       fontsize=10)
+# eDNA and in water frog list
+bvenn(list(eDNA = eDNAList, "Frogs or tadpoles\nin water" = InWaterList),
+      fontsize = 10)
 
 # Positive controls
 # PCE: DNA from 12 species in equal concentrations
@@ -378,15 +389,27 @@ PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
 # PCUNE abundances VS original concentrations
 
 RangeX = range(PCEUNEConc[,"conc"])
-RangeY = range(apply(FrogCounts[,C.PCUNE],1,mean))
+RangeY = range(apply(FrogCounts[,C.PCUNE],1,max))
 
 par(mfrow = c(1,1), mar=c(4,4,3,1))
 plot(RangeX, RangeY, type="n", xlab="DNA concentrations", ylab = "Read numbers", 
      log="x", main = "Positiv non-equimolar controls")
-for (i in PosList[PosList != "Hypsiboas geographicus"]){
-  points(PCEUNEConc[i,"conc"], mean(as.numeric(FrogCounts[i,C.PCUNE])), 
-         pch=19)
+for (i in C.PCUNE){
+  points(jitter(PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"]), 
+       FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i], 
+       lwd=2, col = i)
+  # abline(lm(FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i] ~ 
+  #             PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"]), 
+  #        col = i)
 }
+
+#PCUNE correlations
+PCUNE.cor = c()
+for (i in C.PCUNE){
+  PCUNE.cor = c(PCUNE.cor, cor(PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"], 
+         FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i]))
+}
+mean(PCUNE.cor)
 
 # Correlation of concentrations and read numbers in the PCUNE
 ConcMeanRead = data.frame()
@@ -449,7 +472,7 @@ m1 = manyglm(FrogsMvabund ~ Reads + Lakes,
              data=MetaLakesNoZero)
 
 # Increase nBoot=1000, and include p.uni for species-level statistics
-m1.anova = anova(m1, nBoot = 1000, p.uni = "adjusted")
+m1.anova = anova(m1, nBoot = 10, p.uni = "adjusted")
 
 # nice anova table
 kable(m1.anova$table)
@@ -494,13 +517,16 @@ MyColors = data.frame(cols = c("green","orange","red","purple","blue"),
                       lakes = levels(factor(MetaLakesNoZero$Lakes)))
 
 # Constrained ordination plot
-par(mfrow=c(1,1), mar=c(4,4,3,1), oma=c(1,1,0,0))
-ordifrog= ordiplot(ord.m.const$lv.median, type = "none", cex =0.5 
-                   ,display = "sites", xlim = c(-4,3),
-                   main="Constrained LV ordination")
-points(ordifrog,"sites", pch=20 ,col=LakeCol)
-legend(5, -2, paste(c("T1", "T2", "T3", "T4", "T5")), fill=as.vector(MyColors$cols), 
-       border="white", bty="n")
+par(mfrow=c(2,1), mar=c(1,5,1,1), oma=c(1,1,0,0))
+layout(matrix(c(1,1,2,2), 2, 2, byrow = TRUE),
+       heights=c(2,1))
+ordiplot(ord.m.const$lv.median, type = "none", cex =2, 
+                   display = "sites", # xlim = c(-0.1,0.1), ylim = c(-6,7),
+                   main="Constrained LV ordination", 
+                   cex.lab = 1.5, cex.axis = 1.5)
+points(ordifrog,"sites", pch=20 ,col=LakeCol, cex = 2)
+legend(5, 0, paste(c("T1", "T2", "T3", "T4", "T5")), fill=as.vector(MyColors$cols), 
+       border="white", bty="n", cex = 1.5)
 ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5, 
                          draw="polygon", col="green",
                          alpha=100,kind="se",conf=0.95, 
@@ -521,6 +547,16 @@ ordiellipse(ordifrog, factor(MetaLakesNoZero$Lakes), cex=.5,
             draw="polygon", col="blue",
             alpha=100,kind="se",conf=0.95, 
             show.groups=(c("T5")))
+
+# Cluster of ponds using species presence-absence based on the audio-visual survey
+VAES = read.csv(file = "abundances/VAES_presence-absence.csv", 
+                header = T, row.names = 1)
+
+# plot(hclust(vegdist(t(VAES), method = "jaccard"), method = "complete"))
+par(mar = c(1,5,1,1))
+plot(hclust(vegdist(t(VAES), method = "raup"), method = "average"),
+     xlab = "", main = "", cex.lab = 1.5, cex.axis = 1.5, lwd = 1.5, cex = 1.5)
+# plot(hclust(vegdist(t(VAES), method = "raup"), method = "average"))
 
 # Unconstrained ordination plot
 # plot(ord.m.noconst$lv.median, col=LakeCol, 
