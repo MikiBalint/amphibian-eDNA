@@ -8,6 +8,7 @@ library(mvabund)
 library(car)
 # library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
 
+#proba
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
                      header=T, row.names=1)
 EmblAssign = read.csv(file="abundances/frogs_16S_EMBL.tab", sep="\t",
