@@ -398,10 +398,36 @@ plot(RangeX, RangeY, type="n", xlab="DNA concentrations", ylab = "Read numbers",
 for (i in C.PCUNE){
   points(jitter(PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"]), 
        FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i], 
-       lwd=2, col = i)
+       lwd=2, col = i*10)
   # abline(lm(FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i] ~ 
   #             PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"]), 
   #        col = i)
+}
+
+# Same order of frogs
+PCEUNEConcOrd = PCEUNEConc[order(PCEUNEConc$conc),]
+
+# PCE ordered 
+palette(colors())
+par(mar=c(8,4,1,1))
+plot(c(1:12), seq(0.1, (max(FrogCounts[,C.PCE])), 
+                  (max(FrogCounts[,C.PCE]))/12), type="n",
+     xaxt="n", xlab="", ylab="Read numbers",
+     main = "Equimolar controls") 
+# axis(1, at = c(1:12), labels = rownames(PCEUNEConcOrd), las = 2, cex.axis=0.6)
+for (i in C.PCE) {
+  points(c(1:12), (FrogCounts[rownames(PCEUNEConcOrd),i]), 
+         lwd=2, col = i*10, type = "o", pch = 19, cex = 0.7)
+}
+
+# Ordered PCUNE
+par(mfrow = c(1,1), mar=c(4,4,3,1))
+plot(RangeX, RangeY, type="n", xlab="DNA concentrations in PCR (ng/ul)", ylab = "Read numbers", 
+     log = "x", main = "Non-equimolar controls")
+for (i in C.PCUNE){
+  points(PCEUNEConcOrd[,"conc"], 
+         FrogCounts[rownames(PCEUNEConcOrd),i], 
+         lwd=2, col = i*10, type = "o", pch = 19, cex = 0.7)
 }
 
 #PCUNE correlations
