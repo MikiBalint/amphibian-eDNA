@@ -319,11 +319,13 @@ SurveyList = c("Dendropsophus leucophyllatus",
                "Scinax madeirae",
                "Scinax ruber",
                "Scinax nasicus")
+write.csv(file="abundances/survey_species.csv", SurveyList)
 
 InWaterList = read.csv(file = "abundances/frogs_in_water.csv", header = F)
 InWaterList = levels(c(InWaterList)$V1)
 
 eDNAList = rownames(FrogLakes)[apply(FrogLakes,1,sum) > 0]
+write.csv(file="abundances/eDNA_species.csv", eDNAList)
 
 # eDNA and audio-visual survey list
 bvenn(list(eDNA = eDNAList, "Audio-visual\nsurvey" = SurveyList), 
@@ -331,6 +333,28 @@ bvenn(list(eDNA = eDNAList, "Audio-visual\nsurvey" = SurveyList),
 # eDNA and in water frog list
 bvenn(list(eDNA = eDNAList, "Frogs or tadpoles\nin water" = InWaterList),
       fontsize = 10)
+
+# Read all lists
+AllLists = read.csv(file="CombinedSpeciesLists.csv", header = T)
+
+# # Replace empty cells with NA
+# AllLists = as.data.frame(apply(AllLists, 2, function(x) gsub("^$|^ $", NA, x)))
+
+bvenn(list(eDNA = AllLists$eDNA, "VAES-TS" = AllLists$VAES_TS),
+      fontsize = 10)
+
+bvenn(list("eDNA" = AllLists$eDNA, 
+           "In water during survey" = AllLists$InWater),
+      fontsize = 10)
+
+bvenn(list("eDNA" = AllLists$eDNA, 
+           "Long-term survey" = AllLists$LTS),
+      fontsize = 10)
+
+bvenn(list("eDNA" = AllLists$eDNA, 
+           "Long-term survey" = AllLists$InWater_LTS),
+      fontsize = 10)
+
 
 # Positive controls
 # PCE: DNA from 12 species in equal concentrations
