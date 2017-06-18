@@ -345,7 +345,7 @@ FrogCounts = FrogCounts[,2:79]
 
 # Correct the Scinax madeirae: Scinax sp. FB-2014a is actually S. madeirae
 # Species list
-rownames(FrogCounts)[34] <- "Scinax madeirae"
+rownames(FrogCounts)[33] <- "Scinax madeirae"
 
 # Remove ambiguous assignments:
 ambiguous = c("Hylinae", "Hylidae", "Hyloidea", "Leptodactylus", "Osteocephalus",
@@ -574,6 +574,67 @@ dev.off()
 # permuation test of the correspondence
 protest(pond_centroids, VAES_ord$points)
 
+###
+# recovery of species in the positive controls
+# PCE: DNA from 12 species in equal concentrations
+C.PCE = grep("sample.P.PCE", names(FrogCounts))
+
+# PCUNE: DNA from 12 species in stepwise doubled concentrations
+C.PCUNE = grep("sample.P.PCUNE", names(FrogCounts))
+
+# Species in the positiv control
+PosList_mock = sort(c("Phyllomedusa azurea",
+                      "Physalaemus centralis",
+                      "Hypsiboas geographicus",
+                 "Pseudopaludicola mystacalis",
+                 "Hypsiboas punctatus",
+                 "Leptodactylus fuscus",
+                 "Hypsiboas raniceps",
+                 "Pseudis limellum",
+                 "Leptodactylus podicipinus",
+                 "Scinax madeirae",
+                 "Dendropsophus leucophyllatus",
+                 "Dendropsophus nanus"))
+
+# non-equimolar positive control DNA concentrations
+PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
+PCEUNEConc <- data.frame(PCEUNEConc, FrogCounts[PosList_mock, C.PCUNE])
+PCEUNEConc <- PCEUNEConc[order(PCEUNEConc$conc),]
+
+# The seven PCE samples are positively correlated at R > 0.7.
+hist(cor(t(FrogCounts[PosList_mock,C.PCE])), 
+     xlab = "Correlation coefficient",
+     main = "")
+
+# plot positives
+# ranges for non-equimolar positive plot
+RangeX = range(PCEUNEConc[,"conc"])
+RangeY = range(apply(FrogCounts[,C.PCUNE],1,max))
+
+# reorder equimolar positive
+PosList_mock[order(rownames(PCEUNEConc))]
+
+pdf("positives.pdf", width = 5, height = 8)
+palette(colors())
+par(mfrow = c(2,1), mar=c(6,5,1,1))
+plot(c(1:12), seq(0.1, (max(FrogCounts[,C.PCE])), 
+                  (max(FrogCounts[,C.PCE]))/12), type="n",
+     xaxt="n", 
+     xlab="", ylab="Read numbers") 
+axis(1, at = c(1:12), labels = rownames(PCEUNEConc), las = 2, cex.axis=0.6)
+for (i in C.PCE) {
+  lines(c(1:12), (FrogCounts[rownames(PCEUNEConc),i]), 
+        col=i*10, lwd=2, type = "o", pch = 19)
+}
+par(mar=c(5,5,3,1))
+plot(RangeX, RangeY, type="n", 
+     xlab="DNA concentrations (ng/ul)", ylab = "Read numbers", 
+     log = "x")
+for (i in 3:9){
+  lines(na.omit(data.frame(PCEUNEConc$conc, PCEUNEConc[,i])),
+        lwd=2, col = i*10, type = "o", pch = 19)
+}
+dev.off()
 
 
 
@@ -878,135 +939,7 @@ write.csv(file="abundances/eDNA_species.csv", eDNAList)
 #       fontsize = 10)
 
 
-# Positive controls
-# PCE: DNA from 12 species in equal concentrations
-C.PCE = grep("sample.P.PCE", names(FrogCounts))
 
-# PCUNE: DNA from 12 species in stepwise doubled concentrations
-C.PCUNE = grep("sample.P.PCUNE", names(FrogCounts))
-
-# Species in the positiv control
-PosList = sort(c("Phyllomedusa azurea",
-                 "Physalaemus centralis",
-                 "Hypsiboas geographicus",
-                 "Pseudopaludicola mystacalis",
-                 "Hypsiboas punctatus",
-                 "Leptodactylus fuscus",
-                 "Hypsiboas raniceps",
-                 "Pseudis limellum",
-                 "Leptodactylus podicipinus",
-                 "Scinax madeirae",
-                 "Dendropsophus leucophyllatus",
-                 "Dendropsophus nanus"))
-
-# One of the 12 species (Hypsiboas geographicus) is not present in the PCE results.
-IsInPCE = cbind(PosList, PosList %in% rownames(FrogCounts))
-
-# Visualize conncentrations in the PCE. Lines are PCE samples.
-palette(colors())
-par(mar=c(8,4,1,1))
-plot(c(1:12), seq(0.1, (max(FrogCounts[,C.PCE])), 
-                  (max(FrogCounts[,C.PCE]))/12), type="n",
-     xaxt="n", xlab="", ylab="Read numbers") 
-axis(1, at = c(1:12), labels = PosList, las = 2, cex.axis=0.6)
-for (i in C.PCE) {
-  lines(c(1:12), (FrogCounts[PosList,i]), col=i+10, lwd=2)
-}
-
-# The seven PCE samples are positively correlated at R > 0.7.
-
-# Correction factors for PCE (obsolate)
-PCEConc = 5 #ng/ul
-PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
-# 
-# #  the mean abundance of the species in PCE with 1x dilution 
-# # in PCUNE should correspond the  5 ng/ul conc: Phyllomedusa azurea
-# mean(as.numeric(FrogCounts["Phyllomedusa azurea", C.PCE]))
-# 
-# # Divide this by all abundances of control species to get the correction factor
-# CorrectFactor = mean(as.numeric(FrogCounts["Phyllomedusa azurea", C.PCE])) /
-#   apply(FrogCounts[PosList,],1,mean)
-# 
-# # Corrected PCE abundances
-# FrogCountsCorrected = FrogCounts[PosList,] * CorrectFactor
-# apply(FrogCountsCorrected, 1, sum)
-
-# Evaluation of non-equimolar concentrations and read numbers
-# Correlations with the original DNA concentrations
-# PCUNE abundances VS original concentrations
-
-RangeX = range(PCEUNEConc[,"conc"])
-RangeY = range(apply(FrogCounts[,C.PCUNE],1,max))
-
-par(mfrow = c(1,1), mar=c(4,4,3,1))
-plot(RangeX, RangeY, type="n", xlab="DNA concentrations", ylab = "Read numbers", 
-     log="x", main = "Positiv non-equimolar controls")
-for (i in C.PCUNE){
-  points(jitter(PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"]), 
-         FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i], 
-         lwd=2, col = i*10)
-  # abline(lm(FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i] ~ 
-  #             PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"]), 
-  #        col = i)
-}
-
-# Same order of frogs
-PCEUNEConcOrd = PCEUNEConc[order(PCEUNEConc$conc),]
-
-# PCE ordered 
-palette(colors())
-par(mar=c(8,4,1,1))
-plot(c(1:12), seq(0.1, (max(FrogCounts[,C.PCE])), 
-                  (max(FrogCounts[,C.PCE]))/12), type="n",
-     xaxt="n", xlab="", ylab="Read numbers",
-     main = "Equimolar controls") 
-# axis(1, at = c(1:12), labels = rownames(PCEUNEConcOrd), las = 2, cex.axis=0.6)
-for (i in C.PCE) {
-  points(c(1:12), (FrogCounts[rownames(PCEUNEConcOrd),i]), 
-         lwd=2, col = i*10, type = "o", pch = 19, cex = 0.7)
-}
-
-# Ordered PCUNE
-par(mfrow = c(1,1), mar=c(4,4,3,1))
-plot(RangeX, RangeY, type="n", xlab="DNA concentrations in PCR (ng/ul)", ylab = "Read numbers", 
-     log = "x", main = "Non-equimolar controls")
-for (i in C.PCUNE){
-  points(PCEUNEConcOrd[,"conc"], 
-         FrogCounts[rownames(PCEUNEConcOrd),i], 
-         lwd=2, col = i*10, type = "o", pch = 19, cex = 0.7)
-}
-
-#PCUNE correlations
-PCUNE.cor = c()
-for (i in C.PCUNE){
-  PCUNE.cor = c(PCUNE.cor, cor(PCEUNEConc[PosList[PosList != "Hypsiboas geographicus"],"conc"], 
-                               FrogCounts[PosList[PosList != "Hypsiboas geographicus"],i]))
-}
-mean(PCUNE.cor)
-
-# Correlation of concentrations and read numbers in the PCUNE
-ConcMeanRead = data.frame()
-for (i in PosList[PosList != "Hypsiboas geographicus"]){
-  ConcRead = c(PCEUNEConc[i,"conc"], mean(as.numeric(FrogCounts[i,C.PCUNE])),
-               mean(as.numeric(FrogCounts[i,C.PCE])))
-  ConcMeanRead = rbind(ConcMeanRead, ConcRead)
-}
-colnames(ConcMeanRead) = c("conc", "MeanReadPCUNE", "MeanReadPCE")
-rownames(ConcMeanRead) = PosList[PosList != "Hypsiboas geographicus"]
-
-cor(ConcMeanRead, method = "pearson")
-
-
-# # Visualize conncentrations in the PCE. Lines are PCE samples.
-# palette(colors())
-# par(mar=c(8,4,1,1))
-# plot(c(1:11), seq(0.1, (max(FrogCountsCorrected[,C.PCE])), 
-#                   (max(FrogCountsCorrected[,C.PCE]))/11), type="n",
-#      xaxt="n", xlab="", ylab="Read numbers") 
-# axis(1, at = c(1:11), labels = PosList[PosList != "Hypsiboas geographicus"], las = 2, cex.axis=0.6)
-# for (i in C.PCE) {
-#   lines(c(1:11), (FrogCountsCorrected[PosList != "Hypsiboas geographicus",i]), col=i+10, lwd=2)
-# }
 
 
 
