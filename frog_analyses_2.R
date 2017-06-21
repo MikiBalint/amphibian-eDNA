@@ -3,11 +3,11 @@
 # assignment with EMBL only
 # ecotag -d /phylodata/mbalint/databases/ecoPCR_embl_130/ecopcr_embl_130 -R -m 0.98 ../09_ecopcr/NCBI/16S/db_16S.fasta frogs_clean.fasta > frogs_16S_only_EMBL_assigned.fasta
 
-
 library(vegan)
 library(tidyverse)
 library(boral)
 library(mvabund)
+library(unmarked)
 # # library(vegan3d)
 # library(bvenn)
 # library(knitr)
@@ -425,7 +425,7 @@ FrogCounts <- FrogCounts[,apply(FrogCounts,2,sum) > 0]
 ###
 # summed frog read abundances in ponds
 
-# Grep names of all samples. Sample names are in the 'lakeCodes'
+# Grep names of all samples. Sample names are in the 'PondCodes'
 IsPondSample = grep(paste(PondCodes, collapse='|'), 
                     names(FrogCounts), ignore.case=TRUE)
 
@@ -511,8 +511,12 @@ rownames(pond_centroids) <- c("T1", "T2", "T3", "T4", "T5")
 VAES = read.csv(file = "abundances/VAES_presence-absence.csv", 
                 header = T, row.names = 1)
 
-# VAES ordiantion
-VAES_ord <- metaMDS(t(VAES), distance = "jaccard", trymax = 1000)
+# VAES with LVM ordiantion
+boral_VAES_m1 <- boral(t(VAES), 
+                       family = "binomial", 
+                       num.lv = 2)
+
+# VAES_ord <- metaMDS(t(VAES), distance = "jaccard", trymax = 1000)
 
 # Colors for ordination
 palette(colors())
@@ -558,21 +562,23 @@ ordiellipse(ordifrog, factor(pond_only_meta$ponds), cex=.5,
 points(pond_centroids, pch = 3)
 text(pond_centroids, labels = rownames(pond_centroids),
      pos = 4, offset = 0.3)
-plot(procrustes(pond_centroids, VAES_ord$points), 
+plot(procrustes(pond_centroids, boral_VAES_m1$lv.median), 
      main = "", kind = 0,
      xlab = "Community axis 1",
      ylab = "Community axis 2",
      cex.lab = 1.2, cex.axis = 1.2)
-points(procrustes(pond_centroids, VAES_ord$points), 
+points(procrustes(pond_centroids, boral_VAES_m1$lv.median), 
        pch = 21, bg = as.character(MyColors$cols), cex = 2)
-lines(procrustes(pond_centroids, VAES_ord$points), 
+lines(procrustes(pond_centroids, boral_VAES_m1$lv.median), 
        type = c("arrows"), angle = 20, length = 0.1)
-text(procrustes(pond_centroids, VAES_ord$points),
+text(procrustes(pond_centroids, boral_VAES_m1$lv.median),
      pos = 1, offset = 0.7)
 dev.off()
 
 # permuation test of the correspondence
-protest(pond_centroids, VAES_ord$points)
+protest(pond_centroids, boral_VAES_m1$lv.median)
+
+# protest(pond_centroids, VAES_ord$points)
 
 ###
 # recovery of species in the positive controls
@@ -636,12 +642,54 @@ for (i in 3:9){
 }
 dev.off()
 
+###
+# species observation models - SOM
 
+# format data
+# filter for pond sample PCR replicates
+is_pond_replicate <- grep("sample\\.T", names(AbundControlled))
+pond_replicate_abunds <- AbundControlled[,is_pond_replicate]
+pond_replicate_abunds <- pond_replicate_abunds[apply(pond_replicate_abunds,1,sum) > 0,]
 
+# metadata for pond replicates
+pond_replicate_meta <- MetaHead[rownames(MetaHead) %in% rownames(pond_replicate_abunds),]
 
+# aggregate according to scientific names
+aggregate_for_som <- data.frame(name = pond_replicate_meta$sci_name[pond_replicate_meta$sci_name %in% Amphi], 
+                                pond_replicate_abunds[pond_replicate_meta$sci_name %in% Amphi,])
+species_for_som <- aggregate(. ~ name, aggregate_for_som, sum, na.action = na.exclude)
+# rownames(species_for_som) = species_for_som$name
+# species_for_som = species_for_som[,2:ncol(species_for_som)]
 
+# keep only reliable species - those that were kept after all cleanup steps
+species_for_som <- species_for_som[species_for_som$name %in% colnames(frogs_in_ponds),]
 
+# transform into presence-absence
+species_for_som[species_for_som > 0] <- 1
 
+# transform into long format
+species_for_som_long <- melt(species_for_som, id.vars = "name", measure.vars = c(2:257))
+
+# sample names into variables
+pcr_replicate <- sapply(strsplit(as.character(species_for_som_long$variable), 
+                                 split='.16S'), 
+                        function(x) (x[2]))
+
+pond_names_som <- substr(as.character(species_for_som_long$variable), 8, 9)
+
+last_part_name <- substr(as.character(species_for_som_long$variable),
+                         (nchar(as.character(species_for_som_long$variable))+2)-6,
+                         nchar(as.character(species_for_som_long$variable)))
+
+preservation_extraction <- substr(last_part_name,0,1)
+
+# SOM long format with replicate descriptors
+som_long_predictors <- data.frame(name = species_for_som_long$name,
+                                  pond = pond_names_som,
+                                  method = preservation_extraction,
+                                  replicate = pcr_replicate)
+
+write.csv(file="som_input_170622.csv", som_long_predictors)
 
 
 
