@@ -267,10 +267,6 @@ MetaControlled <- MetaHead[rownames(MetaHead) %in% rownames(SummedControlled),]
 # Amphi, HighGroup, "Homo sapiens", FarmAnim, Bird, Fish, Insect, Mammal
 # from the MetaHead$sci_name variable
 
-### To Correct!!!
-# There are several conflicting names with Martin's regional species list and 
-# the species names that were included into the databases. Those need to be named here!
-
 Amphi = c("Dendropsophus arndti","Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
           "Dendropsophus minutus","Dendropsophus nanus","Dendropsophus salli","Dermatonotus muelleri",
           "Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea",
@@ -339,13 +335,6 @@ FrogAggregate = data.frame(name = MetaControlled$sci_name[MetaControlled$sci_nam
 FrogCounts = aggregate(. ~ name, FrogAggregate, sum, na.action = na.exclude)
 rownames(FrogCounts) = FrogCounts$name
 FrogCounts = FrogCounts[,2:79]
-
-### Correct all species here that need correction.
-# To Correct 
-
-# Correct the Scinax madeirae: Scinax sp. FB-2014a is actually S. madeirae
-# Species list
-rownames(FrogCounts)[33] <- "Scinax madeirae"
 
 # Remove ambiguous assignments:
 ambiguous = c("Hylinae", "Hylidae", "Hyloidea", "Leptodactylus", "Osteocephalus",
@@ -441,10 +430,40 @@ for (i in 1:length(PondCodes)) {
 }
 colnames(FrogPonds) = PondCodes
 
+# modify the names of the species so it matches the latest nomenclature 
+# (Jansen et al. 2011, Duellmann et al. 2016, Caminer et al. 2017)
+actual_names <- c("Dendropsophus melanargyreus",
+                  "Dendropsophus minutus A",
+                  "Dendropsophus nanus A",
+                  "Dermatonotus muelleri",
+                  "Elachistocleis sp. A",
+                  "Eupemphix nattereri",
+                  "Hypsiboas punctatus A",
+                  "Hypsiboas raniceps",
+                  "Leptodactylus elenae A",
+                  "Leptodactylus syphax",
+                  "Leptodactylus vastus",
+                  "Osteocephalus taurinus",
+                  "Pithecopus azureus",
+                  "Phyllomedusa boliviana",
+                  "Physalaemus cf. albonotatus",
+                  "Physalaemus centralis A",
+                  "Pseudis paradoxa",
+                  "Rhinella schneideri",
+                  "Scinax fuscomarginatus",
+                  "Scinax fuscovarius",
+                  "Scinax nasicus A",
+                  "Scinax cf. nasicus",
+                  "Scinax madeirae",
+                  "Leptodactylus latinasus",
+                  "Lysapsus laevis"
+)
+
+rownames(FrogsInPonds)
+
 # summed read abundances of species in the five ponds
 write.csv(file="Frog_sums_ponds.csv", 
           cbind(FrogPonds, Total = apply(FrogPonds,1,sum)))
-
 
 
 #####
@@ -883,15 +902,16 @@ library(ggmap)
 library(maps)
 library(mapdata)
 library(ggsn)
+library(rgdal)
 # area box
 chiquitos_bbox <- make_bbox(lat = c(-16.38, -16.356), 
                             lon = c(-62.01, -61.995))
 
+# pond coordinates
 ponds <- data.frame(row.names = c("T1", "T2", "T3", "T4", "T5"),
                     lon = c(-62.00214, -62.000538, -62.00275, -62.005674, -62.001422),
                     lat = c(-16.3767, -16.357364, -16.3607, -16.366689, -16.359885)
                     )
-ponds_poly <- read.csv("pond_poly.csv")
 
 # google terrain area
 chiquitos_goo <- get_googlemap(center = c(-62.002, -16.3665), 
@@ -902,168 +922,26 @@ chiquitos_goo <- get_googlemap(center = c(-62.002, -16.3665),
                                zoom = 15
                                )
 
-pdf("ponds.pdf")
+# pond polygons
+ponds_polygon <- readOGR("pond_polygons.kml")
+
+# png(filename = "ponds.png", width = 6, height = 8, units = "cm", res = 300)
 ggmap(chiquitos_goo) + 
-  geom_point(data = ponds,
-             mapping = aes(x = lon, y = lat),
-             color = "red") +
-  # geom_path(data = ponds_poly, 
-  #           mapping = aes(x = X, y = Y, group = )) +
+  geom_polygon(data = ponds_polygon, 
+               aes(x = long, 
+                   y = lat, 
+                   group = group),
+               color = "white", 
+               fill = "lightblue", 
+               alpha = 0.7) +
+  labs(x = "Longitude",
+     y = "Latitude") +
   geom_text(data = ponds, 
             aes(label = paste("  ", as.character(rownames(ponds)), sep="")), 
-            hjust = 0, 
-            color = "white") +
-  labs(x = "Longitude",
-       y = "Latitude")
-dev.off()
+            hjust = 0.2, 
+            color = "white",
+            size = 3)
+# dev.off()
 
 
-#######
-# Venn diagrams (http://stackoverflow.com/questions/11722497/how-to-make-venn-diagrams-in-r)
-SurveyList = c("Dendropsophus leucophyllatus",
-               "Dendropsophus melanargyreus",
-               "Dendropsophus minutus",
-               "Dendropsophus nanus",
-               "Dendropsophus salli",
-               "Elachistocleis sp.",
-               "Eupemphix nattereri",
-               "Hypsiboas geographicus",
-               "Hypsiboas punctatus",
-               "Hypsiboas raniceps",
-               "Leptodactylus fuscus",
-               "Leptodactylus syphax",
-               "Leptodactylus vastus",
-               "Leptodactylus chaquensis",
-               "Osteocephalus taurinus",
-               "Phyllomedusa azurea",
-               "Phyllomedusa boliviana",
-               "Physalaemus albonotatus",
-               "Physalaemus centralis",
-               "Pseudis paradoxa",
-               "Pseudis laevis",
-               "Pseudopaludicola mystacalis",
-               "Sphaenorhynchus lacteus",
-               "Scinax fuscomarginatus",
-               "Scinax fuscovarius",
-               "Scinax madeirae",
-               "Scinax ruber",
-               "Scinax nasicus")
-write.csv(file="abundances/survey_species.csv", SurveyList)
-
-InWaterList = read.csv(file = "abundances/frogs_in_water.csv", header = F)
-InWaterList = levels(c(InWaterList)$V1)
-
-eDNAList = rownames(FrogLakes)[apply(FrogLakes,1,sum) > 0]
-write.csv(file="abundances/eDNA_species.csv", eDNAList)
-
-# # eDNA and audio-visual survey list
-# bvenn(list(eDNA = eDNAList, "Audio-visual\nsurvey" = SurveyList), 
-#       fontsize=10)
-# # eDNA and in water frog list
-# bvenn(list(eDNA = eDNAList, "Frogs or tadpoles\nin water" = InWaterList),
-#       fontsize = 10)
-
-
-# Something is woring with these Venns 
-# # Read all lists
-# AllLists = read.csv(file="CombinedSpeciesLists.csv", header = T)
-# 
-# # # Replace empty cells with NA
-# # AllLists = as.data.frame(apply(AllLists, 2, function(x) gsub("^$|^ $", NA, x)))
-# 
-# bvenn(list(eDNA = AllLists$eDNA, "VAES-TS" = AllLists$VAES_TS),
-#       fontsize = 10)
-# 
-# bvenn(list("eDNA" = AllLists$eDNA, 
-#            "In water during survey" = AllLists$InWater),
-#       fontsize = 10)
-# 
-# bvenn(list("eDNA" = AllLists$eDNA, 
-#            "Long-term survey" = AllLists$LTS),
-#       fontsize = 10)
-# 
-# bvenn(list("eDNA" = AllLists$eDNA, 
-#            "Long-term survey" = AllLists$InWater_LTS),
-#       fontsize = 10)
-
-
-
-
-
-
-
-
-
-# Unconstrained ordination plot
-# plot(ord.m.noconst$lv.median, col=LakeCol, 
-#      pch=19, main="Unconstrained LV ordination", las=1, xlab = "LV1", ylab = "LV2")
-# legend(-6.5, 2, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", 
-#                   "Wetland Centro"), fill=as.vector(MyColors$cols), 
-#        border="white", bty="n")
-# for (i in levels(factor(MetaLakesNoZero$Lakes))) {
-#   ellipse(center = c(mean(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,"LV1"]), 
-#                      mean(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,"LV2"])),
-#           shape = cov(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,]),
-#           radius = 0.95*mean(std.error(ord.m.noconst$lv.median[MetaLakesNoZero$Lakes == i,])), 
-#           add=T, col=as.vector(MyColors$cols[MyColors$lakes == i]))
-# }
-
-
-# Distribution of read abundances
-hist(apply(FrogCountsT,2,sum), nclass=20, col="grey", 
-     main="Distribution of read abundances",
-     xlab="Read counts per species", ylab="Frequency")
-
-# Simple NMDS plot
-# LakeNMDS = metaMDS(FrogCountsT[SamplesNoZero & Samples,])
-# 
-# par(mar=c(4,4,1,1))
-# plot(LakeNMDS$points, type="n", xlab="NMDS1", ylab="NMDS2")
-# ordispider(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"], col="grey")
-# points(LakeNMDS, pch=20)
-# mylegend = legend(-3.3, 3, c("Small Croco", "Vastus", "Wetland basin", "Lacha Susanna", "Wetland Centro"), 
-#                   fill=c("orange","green","purple","red","blue"), border="white", bty="n")
-# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", 
-#             col=c("orange"), alpha=170,kind="se",conf=0.95, show.groups=(c("T1")))
-# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("green"),
-#             alpha=170,kind="se",conf=0.95, show.groups=(c("T2")))
-# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("purple"),
-#             alpha=170,kind="se",conf=0.95, show.groups=(c("T3")))
-# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("red"),
-#             alpha=170,kind="se",conf=0.95, show.groups=(c("T4")))
-# ordiellipse(LakeNMDS, SiteMeta[SamplesNoZero & Samples,"Lakes"],cex=.5, draw="polygon", col=c("blue"),
-#             alpha=170,kind="se",conf=0.95, show.groups=(c("T5")))
-# 
-# 
-# 
-# 
-
-
-
-# Preservation-extraction method evaluation with species occupancy models
-# Script from Thiery comes here.
-
-# Format the data for SOM
-# !!! Should be updated.
-# data frame of non-control samples
-# positive contols: 
-# C.PCE = grep("sample.P.PCE", names(SpeCounts))
-# C.PCUNE = grep("sample.P.PCUNE", names(SpeCounts))
-# 
-# # negative controls: 
-# C.PNC = grep("sample.P.NC", names(SpeCounts))
-# C.NTC = grep("sample.NTC", names(SpeCounts))
-# C.NC = grep("sample.NC", names(SpeCounts))
-# C.MPX = grep("sample.MPX", names(SpeCounts))
-# 
-# Controls = c(C.PCE,C.PCUNE,C.PNC,C.NTC,C.NC,C.MPX)
-# 
-# # reads from lake observations
-# AbundLakes = SpeCounts[-Controls]
-# 
-# # Transform to presence-absences for species occupancy models
-# AbundSOM = AbundLakes
-# AbundSOM[AbundSOM > 0] <- 1
-# 
-# # write.csv(file = "SOM_data.csv", AbundSOM)
 
