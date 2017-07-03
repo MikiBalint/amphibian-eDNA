@@ -703,12 +703,231 @@ last_part_name <- substr(as.character(species_for_som_long$variable),
 preservation_extraction <- substr(last_part_name,0,1)
 
 # SOM long format with replicate descriptors
-som_long_predictors <- data.frame(name = species_for_som_long$name,
+som_long_predictors <- data.frame(replicate = species_for_som_long$variable, 
+                                  name = species_for_som_long$name,
                                   pond = pond_names_som,
                                   method = preservation_extraction,
-                                  replicate = pcr_replicate)
+                                  replicate = pcr_replicate, 
+                                  detection = species_for_som_long$value)
 
-write.csv(file="som_input_170622.csv", som_long_predictors)
+# write.csv(file="som_input_170623.csv", som_long_predictors)
+
+#### SCRIPT TO RUN THE FALSE POSITIVE SPECIES OCCUPANCY MODEL ####
+#### USED TO ESTIMATE THE DETECTION AND FALSE POSITIVE PROBABILITY OF EACH EDNA METHOD ####
+#### SOM script by Thierry Chambert
+# rm(list=ls())
+options(scipen=999)
+
+### 1. EXTRACT AND FORMAT THE DATA
+# load csv files
+dat0 <- read.csv("som_data_input.csv")
+dat0$Site = as.numeric( gsub("T", "", dat0$Site) )
+dat0$eDNA.Method = as.character(dat0$eDNA.Method)
+
+## Spatial Replicates
+for(a in unique(dat0$Site)){
+  repl = dat0$Spatial.Replicate[dat0$Site == a]
+  mn = min( dat0$Spatial.Replicate[dat0$Site == a] ) - 1
+  dat0$Spatial.Replicate[dat0$Site == a] <- repl-mn
+}
+
+for(a in unique(dat0$Site)){
+  repl = dat0$Spatial.Replicate[dat0$Site == a]
+  mn = min( dat0$Spatial.Replicate[dat0$Site == a] ) - 1
+  dat0$Spatial.Replicate[dat0$Site == a] <- repl-mn
+} # a
+
+for(a in 1:nrow(dat0)){
+  splt = strsplit(x=dat0$eDNA.Method[a], split="")
+  dat0$eDNA.Method[a] <- splt[[1]][1]
+  if( length(splt[[1]]) > 1)
+    # dat0$Spatial.Replicate[a] <- ( dat0$Spatial.Replicate[a] * as.numeric(splt[[1]][2]) ) + ( (as.numeric(splt[[1]][2])-1)*10 )
+    dat0$Spatial.Replicate[a] <- ( dat0$Spatial.Replicate[a] * as.numeric(splt[[1]][2]) ) + ( (dat0$Spatial.Replicate[a]-1)*10 )
+} # a
+
+rk = cbind( rank( unique(dat0$Spatial.Replicate) ), unique(dat0$Spatial.Replicate) )
+rk = rk[order(rk[,1]),]
+for(a in 1:nrow(dat0)) dat0$Spatial.Replicate[a] <- rk[(rk[,2] == dat0$Spatial.Replicate[a]),1]
+
+## ORDER DATA
+dat1 = dat0[ order(dat0$Species, dat0$Site, dat0$eDNA.Method, dat0$Spatial.Replicate, dat0$PCR.Replicate), ]
+dat2 = dat1[,c(2:7)]
+
+## eDNA Method as numeric
+dat2$eDNA.Method[dat2$eDNA.Method == "A"] <- 1
+dat2$eDNA.Method[dat2$eDNA.Method == "B"] <- 2
+dat2$eDNA.Method[dat2$eDNA.Method == "C"] <- 3
+dat2$eDNA.Method <- as.numeric(dat2$eDNA.Method)
+
+## Dimension DATA MATRIX
+# Columns
+UU = unique( cbind(dat2$eDNA.Method, dat2$Spatial.Replicate, dat2$PCR.Replicate) )
+U <- UU[order(UU[,1],UU[,2],UU[,3]),]
+NCOL = nrow(U)
+
+# Rows
+UROW = unique( cbind(dat2$Species, dat2$Site) )
+NROW = nrow(UROW)
+length(unique(dat2$Species)) * length(unique(dat2$Site))
+
+## Create DATA MATRIX
+som.dat = matrix(NA,NROW,NCOL)
+colnames(som.dat) = paste(U[,1],U[,2],U[,3],sep=".")
+
+## FILL IN DATA
+for(j in 1:NROW){
+  spec = levels(dat2$Species)[ UROW[j,1] ]
+  site = UROW[j,2]
+  c1 = dat2[dat2$Species == spec & dat2$Site == site, "eDNA.Method" ]
+  c2 = dat2[dat2$Species == spec & dat2$Site == site, "Spatial.Replicate" ]
+  c3 = dat2[dat2$Species == spec & dat2$Site == site, "PCR.Replicate" ]
+  cname = paste(c1,c2,c3,sep=".")
+  cdat = dat2[as.character(dat2$Species) == spec & dat2$Site == site, "Detection" ]
+  fill = which(colnames(som.dat) %in% cname)
+  som.dat[j,fill] <- cdat
+}# j
+
+### eDNA methods ###
+eDNA.Meth = list()
+# Method A
+eDNA.Meth[[1]] <- which(U[,1] == 1)
+# Method B
+eDNA.Meth[[2]] <- which(U[,1] == 2)
+# Method C
+eDNA.Meth[[3]] <- which(U[,1] == 3)
+
+### OTHER COVARIATES: Species ID
+sp.cod = as.numeric(dat2$Species)
+sp.cod[sp.cod < 10 ] <- paste("0", sp.cod[sp.cod < 10 ], sep="")
+info = data.frame(unique( cbind(as.character(dat2$Species), as.character(sp.cod), as.numeric(dat2$Site)) ), stringsAsFactors = F )
+names(info) = c("species.name","species.code", "site") 
+
+
+### Distinguish FP/TP detections
+## IDENTIFY DETECTION DATA by PCR 
+pcr.id = NA
+nb.pcr = ncol(som.dat) / 4
+for(jj in 1:nb.pcr) pcr.id = c( pcr.id , rep(jj, 4) )
+pcr.id = pcr.id[-1]
+
+## Sum detection over each PCR
+pcr.sum = matrix(NA,nrow(som.dat),nb.pcr)
+for(a in 1:nb.pcr) pcr.sum[,a] = apply(som.dat[,pcr.id==a], 1, sum, na.rm=T)
+
+## LUMP the 4 PCR replicate as ONE DETECTION DATA
+## AND CODE UNAMBIGUOUS DETECTION AS "2" // "1" is for AMBIGUOUS DETECTIONS
+data.1 = pcr.sum
+data.1[data.1 >= 2] <- 2
+
+
+#####################
+#### 2. ANALYSIS ####
+#####################
+
+## COVARIATES 
+# Detection BY eDNA METHOD
+eDNA.Meth.all = eDNA.Meth
+eDNA.Meth[[1]] <- seq(1, max(eDNA.Meth.all[[1]])/4 ,1)
+eDNA.Meth[[2]] <- seq(max(eDNA.Meth[[1]])+1, max(eDNA.Meth.all[[2]])/4 ,1)
+eDNA.Meth[[3]] <- seq(max(eDNA.Meth[[2]])+1, max(eDNA.Meth.all[[3]])/4 ,1)
+
+METH1 <- METH2 <- METH3 <- matrix(NA, nrow(data.1),ncol(data.1))
+METH1[,eDNA.Meth[[1]]] = 1
+METH1[,eDNA.Meth[[2]]] = 0
+METH1[,eDNA.Meth[[3]]] = 0
+METH2[,eDNA.Meth[[1]]] = 0
+METH2[,eDNA.Meth[[2]]] = 1
+METH2[,eDNA.Meth[[3]]] = 0
+METH3[,eDNA.Meth[[1]]] = 0
+METH3[,eDNA.Meth[[2]]] = 0
+METH3[,eDNA.Meth[[3]]] = 1
+occ <- list(meth1 = METH1, meth2 = METH2, meth3 = METH3)
+
+# Separated "sites" BY SPECIES 
+site.cov <- data.frame( species = factor(info$species.code) )
+
+## FORMAT DATA for "unmarked"
+data <- unmarkedFrameOccuFP(y = data.1, siteCovs=site.cov, obsCovs=occ, type = c(0,0,3))
+
+
+## BUILD/RUN MODEL
+fm1 <- occuFP(detformula = 	~ 0 + meth1 + meth2 + meth3, 
+              FPformula = ~ 0 + meth1 + meth2 + meth3, 
+              Bformula = 	~ 0 + meth1 + meth2 + meth3,
+              stateformula = ~ 0 + species, data = data)
+
+
+#####################
+#### 3. RESUTLS  ####
+#####################
+## ESTIMATES
+# Detection (det)
+det = cbind( round(plogis( coef(fm1, type="det") ), 3) ,
+             round( plogis( confint(fm1, type="det") ), 3) )
+colnames(det) = c("estimate", "2.5%CI", "97.5%CI")
+det
+
+# FP rate
+fp = cbind( round(plogis( coef(fm1, type="fp") ), 3) ,
+            round( plogis( confint(fm1, type="fp") ), 3) )
+colnames(fp) = c("estimate", "2.5%CI", "97.5%CI")
+fp
+
+## plot the SOM results
+
+
+###
+
+# Map
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+library(ggsn)
+library(rgdal)
+# area box
+chiquitos_bbox <- make_bbox(lat = c(-16.38, -16.356), 
+                            lon = c(-62.01, -61.995))
+
+# pond coordinates
+ponds <- data.frame(row.names = c("T1", "T2", "T3", "T4", "T5"),
+                    lon = c(-62.00214, -62.000538, -62.00275, -62.005674, -62.001422),
+                    lat = c(-16.3767, -16.357364, -16.3607, -16.366689, -16.359885)
+                    )
+
+# google terrain area
+chiquitos_goo <- get_googlemap(center = c(-62.002, -16.3665), 
+                               source = "google", 
+                               maptype = "satellite",
+                               size = c(320,640),
+                               scale = 2,
+                               zoom = 15
+                               )
+
+# pond polygons
+ponds_polygon <- readOGR("pond_polygons.kml")
+
+# png(filename = "ponds.png", width = 6, height = 8, units = "cm", res = 300)
+ggmap(chiquitos_goo) + 
+  geom_polygon(data = ponds_polygon, 
+               aes(x = long, 
+                   y = lat, 
+                   group = group),
+               color = "white", 
+               fill = "lightblue", 
+               alpha = 0.7) +
+  labs(x = "Longitude",
+     y = "Latitude") +
+  geom_text(data = ponds, 
+            aes(label = paste("  ", as.character(rownames(ponds)), sep="")), 
+            hjust = 0.2, 
+            color = "white",
+            size = 3)
+# dev.off()
+
+
+
+
 
 
 
@@ -738,7 +957,7 @@ axis(2, at=c(3:1), label=c("GFF (2 um, in liquid: A)",
 # False positives per method
 pFPos = grep('^fp\\(meth.\\)', rownames(SOM1))
 plot(SOM1[pFPos,"estimate"], c(3:1), xlim=c(min(SOM1$X2.5..CI[pFPos]),
-                                              max(SOM1$X97.5..CI[pFPos])), 
+                                            max(SOM1$X97.5..CI[pFPos])), 
      yaxt = "n", xlab = "False positives", ylab="", 
      ylim=c(0.5,3.5), pch=19)
 segments(SOM1[pFPos,2], c(3:1), SOM1[pFPos,3], c(3:1))
@@ -839,13 +1058,13 @@ write.csv(file = "species-to-clear.csv", rbind(osteo,elach,pseud))
 # tree checked in seaview, I would believe all variants.
 
 # 
-  
-  
-  
-  
-  
-  
-  
+
+
+
+
+
+
+
 
 
 
@@ -892,56 +1111,5 @@ write.csv(file="16S_R_filtered.csv", Heads16S)
 
 TotPresent = apply(LakeReads,2,function(vec) sum(vec>0))
 hist(TotPresent)
-
-
-###
-
-# Map
-library(ggplot2)
-library(ggmap)
-library(maps)
-library(mapdata)
-library(ggsn)
-library(rgdal)
-# area box
-chiquitos_bbox <- make_bbox(lat = c(-16.38, -16.356), 
-                            lon = c(-62.01, -61.995))
-
-# pond coordinates
-ponds <- data.frame(row.names = c("T1", "T2", "T3", "T4", "T5"),
-                    lon = c(-62.00214, -62.000538, -62.00275, -62.005674, -62.001422),
-                    lat = c(-16.3767, -16.357364, -16.3607, -16.366689, -16.359885)
-                    )
-
-# google terrain area
-chiquitos_goo <- get_googlemap(center = c(-62.002, -16.3665), 
-                               source = "google", 
-                               maptype = "satellite",
-                               size = c(320,640),
-                               scale = 2,
-                               zoom = 15
-                               )
-
-# pond polygons
-ponds_polygon <- readOGR("pond_polygons.kml")
-
-# png(filename = "ponds.png", width = 6, height = 8, units = "cm", res = 300)
-ggmap(chiquitos_goo) + 
-  geom_polygon(data = ponds_polygon, 
-               aes(x = long, 
-                   y = lat, 
-                   group = group),
-               color = "white", 
-               fill = "lightblue", 
-               alpha = 0.7) +
-  labs(x = "Longitude",
-     y = "Latitude") +
-  geom_text(data = ponds, 
-            aes(label = paste("  ", as.character(rownames(ponds)), sep="")), 
-            hjust = 0.2, 
-            color = "white",
-            size = 3)
-# dev.off()
-
 
 
