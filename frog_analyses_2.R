@@ -1,21 +1,16 @@
-# OBITools commands
-
-# assignment with EMBL only
-# ecotag -d /phylodata/mbalint/databases/ecoPCR_embl_130/ecopcr_embl_130 -R -m 0.98 ../09_ecopcr/NCBI/16S/db_16S.fasta frogs_clean.fasta > frogs_16S_only_EMBL_assigned.fasta
-
 library(vegan)
 library(tidyverse)
 library(boral)
 library(mvabund)
 library(unmarked)
-# # library(vegan3d)
-# library(bvenn)
-# library(knitr)
-# library(boral)
+library(ggplot2)
+library(ggmap)
+library(maps)
+library(mapdata)
+library(ggsn)
+library(rgdal)
 
-# # library(geosphere)
-# library(car)
-# library(ape) # installed with ctv, infos here: http://www.phytools.org/eqg/Exercise_3.2/
+rm(list=ls())
 
 # Read abundance tables
 OwnAssign = read.csv(file="abundances/frogs_16S_own.tab", sep="\t",
@@ -48,6 +43,47 @@ MetaEmbl = data.frame(best_id = EmblAssign$best_identity.db_16S,
                       seq_names = rownames(EmblAssign), 
                       row.names=9)
 MetaAll = rbind(MetaOwn, MetaEmbl)
+
+# there were taxonomic changes since the bioinformatics
+# correct the names
+# if the script is adapted to another system: I strongly 
+# recommend to cross-check and finalize the names with a taxonomist 
+# at this step before moving on: levels(MetaAll$sci_name)
+correct_names <- MetaAll$sci_name
+
+correct_names <- gsub("Pseudopaludicola mystacalis", "Pseudopaludicola sp.", 
+                      correct_names)
+correct_names <- gsub("Dendropsophus leucophyllatus", "Dendropsophus arndti", 
+                      correct_names)
+correct_names <- gsub("Pseudis limellum", "Lysapsus limellum", 
+                      correct_names)
+correct_names <- gsub("Phyllomedusa azurea", "Pithecopus azureus", 
+                      correct_names)
+correct_names <- gsub("Scinax sp. FB-2014a", "Scinax madeirae", 
+                      correct_names)
+correct_names <- gsub("Dendropsophus minutus", "Dendropsophus minutus A", 
+                      correct_names)
+correct_names <- gsub("Dendropsophus nanus", "Dendropsophus nanus A", 
+                      correct_names)
+correct_names <- gsub("Elachistocleis sp.", "Elachistocleis sp. A", 
+                      correct_names)
+correct_names <- gsub("Hypsiboas punctatus", "Hypsiboas punctatus A", 
+                      correct_names)
+correct_names <- gsub("Leptodactylus elenae", "Leptodactylus elenae A", 
+                      correct_names)
+correct_names <- gsub("Physalaemus albonotatus", "Physalaemus cf. albonotatus", 
+                      correct_names)
+correct_names <- gsub("Physalaemus centralis", "Physalaemus centralis A", 
+                      correct_names)
+correct_names <- gsub("Scinax ruber", "Scinax cf. nasicus", 
+                      correct_names)
+correct_names <- gsub("Scinax nasicus", "Scinax nasicus A", 
+                      correct_names)
+correct_names <- gsub("Pseudis laevis", "Lysapsus laevis", 
+                      correct_names)
+
+# taxonomically correct scientific names in the metadata
+MetaAll$sci_name <- as.factor(correct_names)
 
 # Obiclean status files
 StatusOwn = OwnAssign[, grepl("obiclean.status", colnames(OwnAssign))]
@@ -123,10 +159,6 @@ ggplot(data = replicate_coordinates_centroids) +
                           color = type,
                           label = type),
             nudge_y = 0.14)
-  # geom_text(mapping = aes(x=MDS1.x, 
-  #                         y=MDS2.x, 
-  #                         color = type,
-  #                         label = rownames(replicate_coordinates_centroids)))
 
 # select "weird" replicates: 
 # they are at least n times further away from their pond centroid
@@ -236,7 +268,6 @@ for (i in 1:length(SampleNames)){
   SummedReps = cbind(SummedReps, apply(AbundNoWeird[ActualSet], 1, sum))
 }
 colnames(SummedReps) = SampleNames
-# write.csv(file="test.csv", AbundControlled)
 
 ###
 # false positives: the presence of a sequence variant is accepted if 
@@ -267,20 +298,20 @@ MetaControlled <- MetaHead[rownames(MetaHead) %in% rownames(SummedControlled),]
 # Amphi, HighGroup, "Homo sapiens", FarmAnim, Bird, Fish, Insect, Mammal
 # from the MetaHead$sci_name variable
 
-Amphi = c("Dendropsophus arndti","Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
-          "Dendropsophus minutus","Dendropsophus nanus","Dendropsophus salli","Dermatonotus muelleri",
-          "Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea",
+Amphi = c("Dendropsophus arndti","Dendropsophus melanargyreus",
+          "Dendropsophus minutus A","Dendropsophus nanus A","Dendropsophus salli","Dermatonotus muelleri",
+          "Elachistocleis sp. A","Eupemphix nattereri","Hylinae","Hyloidea",
           "Hypsiboas geographicus",
-          "Hypsiboas punctatus","Hypsiboas raniceps","Leptodactylus",
-          "Leptodactylus chaquensis","Leptodactylus elenae","Leptodactylus fuscus",
+          "Hypsiboas punctatus A","Hypsiboas raniceps","Leptodactylus",
+          "Leptodactylus chaquensis","Leptodactylus elenae A","Leptodactylus fuscus",
           "Leptodactylus podicipinus","Leptodactylus syphax","Leptodactylus vastus",
-          "Osteocephalus","Osteocephalus taurinus","Phyllomedusa azurea",
-          "Phyllomedusa boliviana","Physalaemus albonotatus","Physalaemus centralis",
-          "Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa",
-          "Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus",
-          "Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a",
+          "Osteocephalus","Osteocephalus taurinus","Pithecopus azureus",
+          "Phyllomedusa boliviana","Physalaemus cf. albonotatus","Physalaemus centralis A",
+          "Physalaemus cuvieri","Lysapsus limellum","Pseudis paradoxa",
+          "Pseudopaludicola sp.","Rhinella schneideri","Scinax fuscomarginatus",
+          "Scinax fuscovarius","Scinax nasicus A","Scinax cf. nasicus","Scinax madeirae",
           "Bufonidae","Elachistocleis","Gastrophryninae","Hylidae",
-          "Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
+          "Leptodactylus latinasus","Melanophryniscus","Pseudis","Lysapsus laevis","Scinax")
 
 HighGroup = c("root", "Bilateria", "Amniota")
 
@@ -298,7 +329,7 @@ Mammal = c("Homo sapiens", "Canis", "Sus scrofa", "Mus", "Bos", "Capreolus capre
            "Myotis", "Laurasiatheria")
 
 # Proportions of different groups
-# pdf("Fig_pie.pdf")
+pdf("Fig_pie.pdf", width = 3.15, height = 3.15)
 par(mar=c(1,1,1,1))
 pie(c(sum(SummedControlled[MetaControlled$sci_name %in% Amphi,]), 
       sum(SummedControlled[MetaControlled$sci_name %in% Mammal,]),
@@ -309,15 +340,9 @@ pie(c(sum(SummedControlled[MetaControlled$sci_name %in% Amphi,]),
     labels = paste(c("Frogs\n2 158 534", "Mammals\n14 006", 
                      "Fish\n1 692 613", "Insects\n304 059", 
                      "Birds\n967", "Higher groups\n1 063 156")),
-    col = c(gray(0.9), gray(0.75), gray(0.60), gray(0.45), gray(0.30), gray(0.15)))
-# dev.off()
-
-sum(SummedControlled[MetaHead$sci_name %in% Amphi,])+ 
-sum(SummedControlled[MetaHead$sci_name %in% Mammal,])+
-sum(SummedControlled[MetaHead$sci_name %in% Fish,])+
-sum(SummedControlled[MetaHead$sci_name %in% Insect,])+
-sum(SummedControlled[MetaHead$sci_name %in% Bird,])+
-sum(SummedControlled[MetaHead$sci_name %in% HighGroup,])
+    col = c(gray(0.9), gray(0.75), gray(0.60), gray(0.45), gray(0.30), gray(0.15)),
+    cex = 0.8)
+dev.off()
 
 # Farm animals:
 sum(SummedControlled[MetaHead$sci_name %in% FarmAnim,])
@@ -378,33 +403,31 @@ FrogsInPosField = FrogsInPosField[apply(FrogsInPosField,1,sum) > 0,]
 
 # list of species included into the positives
 # Species in the positiv control
-PosList = sort(c("Phyllomedusa azurea",
-                 "Physalaemus centralis",
+PosList = sort(c("Pithecopus azureus",
+                 "Physalaemus centralis A",
                  "Hypsiboas geographicus",
-                 "Pseudopaludicola mystacalis",
-                 "Hypsiboas punctatus",
+                 "Pseudopaludicola sp.",
+                 "Hypsiboas punctatus A",
                  "Leptodactylus fuscus",
                  "Hypsiboas raniceps",
-                 "Pseudis limellum",
+                 "Lysapsus limellum",
                  "Leptodactylus podicipinus",
                  "Scinax madeirae",
-                 "Dendropsophus leucophyllatus",
-                 "Dendropsophus nanus",
-                 "Leptodactylus vastus"))
+                 "Dendropsophus arndti",
+                 "Dendropsophus nanus A",
+                 "Leptodactylus vastus")) # L. vastus was a field positive control: present in an aquarium from which water was used as field positive.
 
 # comparison list with read numbers to find a false positive threshold
 FrogsInPosField <- data.frame(FrogsInPosField,
                               max_positives = apply(FrogsInPosField, 1, max),
-                              sum_positives = apply(FrogsInPosField, 1, sum),
+                              max_positives = apply(FrogsInPosField, 1, max),
                               is_positive = rownames(FrogsInPosField) %in% PosList)
 
-# Physalaemus cuvieri is present only in positive controls, this is weird! 
-# May be a mis-naming of H. geographicus?
-sum(FrogCounts["Physalaemus cuvieri",])
-
-
-# the maximum read number of a non-positive control species in a positive is 32. 
-# the false positive threshold is then 40 - a bit higher.
+# the maximum read number of a non-positive control species in a positive is 32 
+# the false positive threshold is then 40.
+# Physalaemus cuvieri should not be in the positives. It has read numbers 
+# that are typical for true positives (e.g. Hypsiboas raniceps), so it is not 
+# used as a positive threshold.
 positive_threshold <- 40
 
 FrogCounts[FrogCounts < 40] <- 0
@@ -430,41 +453,9 @@ for (i in 1:length(PondCodes)) {
 }
 colnames(FrogPonds) = PondCodes
 
-# modify the names of the species so it matches the latest nomenclature 
-# (Jansen et al. 2011, Duellmann et al. 2016, Caminer et al. 2017)
-actual_names <- c("Dendropsophus melanargyreus",
-                  "Dendropsophus minutus A",
-                  "Dendropsophus nanus A",
-                  "Dermatonotus muelleri",
-                  "Elachistocleis sp. A",
-                  "Eupemphix nattereri",
-                  "Hypsiboas punctatus A",
-                  "Hypsiboas raniceps",
-                  "Leptodactylus elenae A",
-                  "Leptodactylus syphax",
-                  "Leptodactylus vastus",
-                  "Osteocephalus taurinus",
-                  "Pithecopus azureus",
-                  "Phyllomedusa boliviana",
-                  "Physalaemus cf. albonotatus",
-                  "Physalaemus centralis A",
-                  "Pseudis paradoxa",
-                  "Rhinella schneideri",
-                  "Scinax fuscomarginatus",
-                  "Scinax fuscovarius",
-                  "Scinax nasicus A",
-                  "Scinax cf. nasicus",
-                  "Scinax madeirae",
-                  "Leptodactylus latinasus",
-                  "Lysapsus laevis"
-)
-
-rownames(FrogsInPonds)
-
 # summed read abundances of species in the five ponds
 write.csv(file="Frog_sums_ponds.csv", 
           cbind(FrogPonds, Total = apply(FrogPonds,1,sum)))
-
 
 #####
 # Ecological signal: differences among the lakes VS preservation/extraction methods
@@ -475,18 +466,15 @@ frogs_in_ponds <- t(FrogsInPonds)
 pond_filter <- rownames(PondMeta) %in% rownames(frogs_in_ponds)
 pond_only_meta <- PondMeta[pond_filter,]
 
-# filter singleton and doubleton species
-single_doubleton_filter <- specnumber(t(frogs_in_ponds)) > 2
-
 # Model-based comparison of the lakes
-frogs_mvabund = mvabund(frogs_in_ponds[,single_doubleton_filter])
+frogs_mvabund = mvabund(frogs_in_ponds)
 
 # Multispecies GLM and ANOVA. Reads control for differences in sequencing depth.
 manyglm_m1 = manyglm(frogs_mvabund ~ ponds, 
              data=pond_only_meta,
              family = "negative.binomial")
 
-# analysis of variance, pond effect, increase nBoot to 1000
+# analysis of variance, pond effect
 m1.anova = anova(manyglm_m1, nBoot = 100, p.uni = "adjusted")
 
 # nice anova table
@@ -503,15 +491,11 @@ hist(manyglm_m1$theta)
 set.prior <- list(type = c("normal","normal","normal","uniform"),
                   hypparams = c(100, 20, 100, 3))
 
-# model-based ordination - only with non-singleton species
-boral_m1 <- boral(frogs_in_ponds[,single_doubleton_filter], 
+# model-based ordination
+boral_m1 <- boral(frogs_in_ponds,
                   family = "negative.binomial", 
                   num.lv = 2,
                   prior.control = set.prior)
-
-# Diagnostics
-par(mfrow = c(2,2))
-plot(boral_m1)
 
 # group centroids of lakes
 LV_lake_factors <- data.frame(boral_m1$lv.median, 
@@ -530,12 +514,10 @@ rownames(pond_centroids) <- c("T1", "T2", "T3", "T4", "T5")
 VAES = read.csv(file = "abundances/VAES_presence-absence.csv", 
                 header = T, row.names = 1)
 
-# VAES with LVM ordiantion
-boral_VAES_m1 <- boral(t(VAES), 
-                       family = "binomial", 
+# # VAES with LVM ordiantion
+boral_VAES_m1 <- boral(t(VAES),
+                       family = "binomial",
                        num.lv = 2)
-
-# VAES_ord <- metaMDS(t(VAES), distance = "jaccard", trymax = 1000)
 
 # Colors for ordination
 palette(colors())
@@ -548,7 +530,7 @@ MyColors = data.frame(cols = c("green","orange","red","purple","blue"),
                       ponds = levels(factor(pond_only_meta$ponds)))
 
 # ordination plots
-pdf("ordinations.pdf", width = 5, height = 8)
+pdf("ordinations.pdf", width = 3.15, height = 6)
 par(mfrow=c(2,1), mar=c(4,4,1,1), oma=c(1,1,0,0))
 # layout(matrix(c(1,1,2,2), 2, 2, byrow = TRUE),
 #        heights=c(2,1))
@@ -557,7 +539,7 @@ ordifrog <- ordiplot(boral_m1$lv.median, type = "none", cex =2,
                      cex.lab = 1.2, cex.axis = 1.2,
                      xlab = "Community axis 1",
                      ylab = "Community axis 2")
-points(ordifrog,"sites", pch=20 ,col=LakeCol, cex = 2)
+points(ordifrog,"sites", pch=20 ,col=LakeCol, cex = 1.5)
 ordiellipse(ordifrog, factor(pond_only_meta$ponds), cex=.5, 
             draw="polygon", col="green",
             alpha=100,kind="se",conf=0.95, 
@@ -580,24 +562,22 @@ ordiellipse(ordifrog, factor(pond_only_meta$ponds), cex=.5,
             show.groups=(c("T5")))
 points(pond_centroids, pch = 3)
 text(pond_centroids, labels = rownames(pond_centroids),
-     pos = 4, offset = 0.3)
+     pos = 4, offset = 0.3, cex = 0.8)
 plot(procrustes(pond_centroids, boral_VAES_m1$lv.median), 
      main = "", kind = 0,
      xlab = "Community axis 1",
      ylab = "Community axis 2",
      cex.lab = 1.2, cex.axis = 1.2)
 points(procrustes(pond_centroids, boral_VAES_m1$lv.median), 
-       pch = 21, bg = as.character(MyColors$cols), cex = 2)
+       pch = 21, bg = as.character(MyColors$cols), cex = 1.5)
 lines(procrustes(pond_centroids, boral_VAES_m1$lv.median), 
        type = c("arrows"), angle = 20, length = 0.1)
 text(procrustes(pond_centroids, boral_VAES_m1$lv.median),
-     pos = 1, offset = 0.7)
+     pos = 4, offset = 0.5, cex = 0.8)
 dev.off()
 
 # permuation test of the correspondence
 protest(pond_centroids, boral_VAES_m1$lv.median)
-
-# protest(pond_centroids, VAES_ord$points)
 
 ###
 # recovery of species in the positive controls
@@ -608,21 +588,22 @@ C.PCE = grep("sample.P.PCE", names(FrogCounts))
 C.PCUNE = grep("sample.P.PCUNE", names(FrogCounts))
 
 # Species in the positiv control
-PosList_mock = sort(c("Phyllomedusa azurea",
+PosList_mock = sort(c("Pithecopus azureus",
                       "Physalaemus centralis",
                       "Hypsiboas geographicus",
-                 "Pseudopaludicola mystacalis",
+                 "Pseudopaludicola sp.",
                  "Hypsiboas punctatus",
                  "Leptodactylus fuscus",
                  "Hypsiboas raniceps",
-                 "Pseudis limellum",
+                 "Lysapsus limellum",
                  "Leptodactylus podicipinus",
                  "Scinax madeirae",
-                 "Dendropsophus leucophyllatus",
+                 "Dendropsophus arndti",
                  "Dendropsophus nanus"))
 
 # non-equimolar positive control DNA concentrations
 PCEUNEConc = read.csv(file="PCUNE_conc.csv", header=T, row.names = 1)
+PCEUNEConc <- PCEUNEConc[order(rownames(PCEUNEConc)),]
 PCEUNEConc <- data.frame(PCEUNEConc, FrogCounts[PosList_mock, C.PCUNE])
 PCEUNEConc <- PCEUNEConc[order(PCEUNEConc$conc),]
 
@@ -639,7 +620,7 @@ RangeY = range(apply(FrogCounts[,C.PCUNE],1,max))
 # reorder equimolar positive
 PosList_mock[order(rownames(PCEUNEConc))]
 
-pdf("positives.pdf", width = 5, height = 8)
+# pdf("positives.pdf", width = 5, height = 8)
 palette(colors())
 par(mfrow = c(2,1), mar=c(6,5,1,1))
 plot(c(1:12), seq(0.1, (max(FrogCounts[,C.PCE])), 
@@ -659,63 +640,12 @@ for (i in 3:9){
   lines(na.omit(data.frame(PCEUNEConc$conc, PCEUNEConc[,i])),
         lwd=2, col = i*10, type = "o", pch = 19)
 }
-dev.off()
 
 ###
-# species observation models - SOM
-
-# format data
-# filter for pond sample PCR replicates
-is_pond_replicate <- grep("sample\\.T", names(AbundControlled))
-pond_replicate_abunds <- AbundControlled[,is_pond_replicate]
-pond_replicate_abunds <- pond_replicate_abunds[apply(pond_replicate_abunds,1,sum) > 0,]
-
-# metadata for pond replicates
-pond_replicate_meta <- MetaHead[rownames(MetaHead) %in% rownames(pond_replicate_abunds),]
-
-# aggregate according to scientific names
-aggregate_for_som <- data.frame(name = pond_replicate_meta$sci_name[pond_replicate_meta$sci_name %in% Amphi], 
-                                pond_replicate_abunds[pond_replicate_meta$sci_name %in% Amphi,])
-species_for_som <- aggregate(. ~ name, aggregate_for_som, sum, na.action = na.exclude)
-# rownames(species_for_som) = species_for_som$name
-# species_for_som = species_for_som[,2:ncol(species_for_som)]
-
-# keep only reliable species - those that were kept after all cleanup steps
-species_for_som <- species_for_som[species_for_som$name %in% colnames(frogs_in_ponds),]
-
-# transform into presence-absence
-species_for_som[species_for_som > 0] <- 1
-
-# transform into long format
-species_for_som_long <- melt(species_for_som, id.vars = "name", measure.vars = c(2:257))
-
-# sample names into variables
-pcr_replicate <- sapply(strsplit(as.character(species_for_som_long$variable), 
-                                 split='.16S'), 
-                        function(x) (x[2]))
-
-pond_names_som <- substr(as.character(species_for_som_long$variable), 8, 9)
-
-last_part_name <- substr(as.character(species_for_som_long$variable),
-                         (nchar(as.character(species_for_som_long$variable))+2)-6,
-                         nchar(as.character(species_for_som_long$variable)))
-
-preservation_extraction <- substr(last_part_name,0,1)
-
-# SOM long format with replicate descriptors
-som_long_predictors <- data.frame(replicate = species_for_som_long$variable, 
-                                  name = species_for_som_long$name,
-                                  pond = pond_names_som,
-                                  method = preservation_extraction,
-                                  replicate = pcr_replicate, 
-                                  detection = species_for_som_long$value)
-
-# write.csv(file="som_input_170623.csv", som_long_predictors)
-
+# Species occupancy model
 #### SCRIPT TO RUN THE FALSE POSITIVE SPECIES OCCUPANCY MODEL ####
 #### USED TO ESTIMATE THE DETECTION AND FALSE POSITIVE PROBABILITY OF EACH EDNA METHOD ####
 #### SOM script by Thierry Chambert
-# rm(list=ls())
 options(scipen=999)
 
 ### 1. EXTRACT AND FORMAT THE DATA
@@ -802,7 +732,6 @@ sp.cod[sp.cod < 10 ] <- paste("0", sp.cod[sp.cod < 10 ], sep="")
 info = data.frame(unique( cbind(as.character(dat2$Species), as.character(sp.cod), as.numeric(dat2$Site)) ), stringsAsFactors = F )
 names(info) = c("species.name","species.code", "site") 
 
-
 ### Distinguish FP/TP detections
 ## IDENTIFY DETECTION DATA by PCR 
 pcr.id = NA
@@ -874,17 +803,44 @@ colnames(fp) = c("estimate", "2.5%CI", "97.5%CI")
 fp
 
 ## plot the SOM results
+# Coefficient plots
+par(mfrow=c(2,1), mar=c(3,10,2,0.5))
+plot(c(min(det), mean(det), max(det)), c(1:3),
+     yaxt = "n",
+     ylab = "", xlab = "", main = "Detection probability",
+     type = "n",
+     ylim = c(0.5,3.5))
+points(det[,"estimate"], c(nrow(det):1),
+       pch = 19, cex = 1.2)
+segments(det[,"2.5%CI"], c(nrow(det):1), 
+         det[,"97.5%CI"], c(nrow(det):1),
+         lwd = 1.2)
+axis(2, at=c(nrow(det):1), 
+     label=c("GFF (2 μm, in liquid, A)",
+             "GFF (2 μm, dried: B)",
+             "GFF (0.2 μm, dried: C)"),
+     las=1, cex.axis=0.9,
+     tick=F)
 
+plot(c(min(fp), mean(fp), max(fp)), c(1:3),
+     yaxt = "n",
+     ylab = "", xlab = "", main = "False positives",
+     type = "n",
+     ylim = c(0.5,3.5))
+points(fp[,"estimate"], c(nrow(fp):1),
+       pch = 19, cex = 1.2)
+segments(fp[,"2.5%CI"], c(nrow(fp):1), 
+         fp[,"97.5%CI"], c(nrow(fp):1),
+         lwd = 1.2)
+axis(2, at=c(nrow(fp):1), 
+     label=c("GFF (2 μm, in liquid, A)",
+             "GFF (2 μm, dried: B)",
+             "GFF (0.2 μm, dried: C)"),
+     las=1, cex.axis=0.9,
+     tick=F)
 
 ###
-
 # Map
-library(ggplot2)
-library(ggmap)
-library(maps)
-library(mapdata)
-library(ggsn)
-library(rgdal)
 # area box
 chiquitos_bbox <- make_bbox(lat = c(-16.38, -16.356), 
                             lon = c(-62.01, -61.995))
@@ -924,192 +880,3 @@ ggmap(chiquitos_goo) +
             color = "white",
             size = 3)
 # dev.off()
-
-
-
-
-
-
-
-# Results from Thierry
-# SOM1: all species modelled together - for a general comparison of the 
-# three preservation / extraction approaches.
-# psi = Pr(occupancy)
-# p = Pr(detection)
-# fp = Pr(flase pos.)
-# b = Pr(ambiguous detection occurs) == only 1 PCR positive / 4
-SOM1 = read.csv(file = "SOM/SOM_results1.csv", row.names = 1, header=T)
-
-# Plot method effects
-# Detection probabilities per method
-pDetect = grep('^p\\(meth.\\)', rownames(SOM1))
-par(mfrow=c(2,1), mar=c(4,10,1,1))
-plot(SOM1[pDetect,"estimate"], c(3:1), xlim=c(min(SOM1$X2.5..CI[pDetect]),
-                                              max(SOM1$X97.5..CI[pDetect])), 
-     yaxt = "n", xlab = "Detection probability", ylab="", 
-     ylim=c(0.5,3.5), pch=19)
-segments(SOM1[pDetect,2], c(3:1), SOM1[pDetect,3], c(3:1))
-axis(2, at=c(3:1), label=c("GFF (2 um, in liquid: A)", 
-                           "GFF (2 um, dried: B)",
-                           "Nylon (0.2 um, dried: C)"), las=1)
-
-# Plot method false positives
-# False positives per method
-pFPos = grep('^fp\\(meth.\\)', rownames(SOM1))
-plot(SOM1[pFPos,"estimate"], c(3:1), xlim=c(min(SOM1$X2.5..CI[pFPos]),
-                                            max(SOM1$X97.5..CI[pFPos])), 
-     yaxt = "n", xlab = "False positives", ylab="", 
-     ylim=c(0.5,3.5), pch=19)
-segments(SOM1[pFPos,2], c(3:1), SOM1[pFPos,3], c(3:1))
-axis(2, at=c(3:1), label=c("GFF (2 um, in liquid: A)", 
-                           "GFF (2 um, dried: B)",
-                           "Nylon (0.2 um, dried: C)"), las=1)
-
-# SOM2: species modelled separately - for species-specific methodological differences
-# Detection probabilities for each species per method
-SOM2.p = read.csv(file = "SOM/SOM2_detection_prob.csv", row.names = 1, header=T)
-
-# False positives, each species per method
-SOM2.fp = SOM2.p = read.csv(file = "SOM/SOM2_false_pos.csv", row.names = 1, header=T)
-
-# Coefficient plots
-par(mfrow=c(1,3), mar=c(4.1,1,0.5,0.5))
-plot(rep(0,nrow(SOM2.p)), c(nrow(SOM2.p):1), type="n", 
-     bty="n", xaxt="n", yaxt="n", xlab="", ylab="")
-plot(SOM2.p[,"pA_estimate"], c(nrow(SOM2.p):1)-0.2, 
-     xlim=c(0,0.5), yaxt="n",
-     xlab="Detection probability", ylab="", pch=19, cex=0.5, 
-     ylim=c(nrow(SOM2.p),1))
-points(SOM2.p[,"pB_estimate"], c(nrow(SOM2.p):1), pch=17, cex=0.5)
-points(SOM2.p[,"pC_estimate"], c(nrow(SOM2.p):1)+0.2, pch=15, cex=0.5)
-segments(SOM2.p$pA_2.5..CI, c(nrow(SOM2.p):1)-0.2, 
-         SOM2.p$pA_97.5..CI, c(nrow(SOM2.p):1)-0.2)
-segments(SOM2.p$pB_2.5..CI, c(nrow(SOM2.p):1), 
-         SOM2.p$pB_97.5..CI, c(nrow(SOM2.p):1))
-segments(SOM2.p$pC_2.5..CI, c(nrow(SOM2.p):1)+0.2, 
-         SOM2.p$pC_97.5..CI, c(nrow(SOM2.p):1)+0.2)
-for(i in 1:nrow(SOM2.p)){
-  lines(c(-0,1), c(i,i)-0.5, lty="dotted")
-}
-axis(2, at=c(nrow(SOM2.p):1), label=rownames(SOM2.p), las=1, cex.axis=0.9,
-     tick=F)
-plot(SOM2.fp[,"pA_estimate"], c(nrow(SOM2.p):1)-0.2, 
-     xlim=c(0,0.5), yaxt="n",
-     xlab="False positives", ylab="", pch=19, cex=0.5, 
-     ylim=c(nrow(SOM2.p),1))
-points(SOM2.fp[,"pB_estimate"], c(nrow(SOM2.fp):1), pch=17, cex=0.5)
-points(SOM2.fp[,"pC_estimate"], c(nrow(SOM2.fp):1)+0.2, pch=15, cex=0.5)
-segments(SOM2.fp$pA_2.5..CI, c(nrow(SOM2.fp):1)-0.2, 
-         SOM2.fp$pA_97.5..CI, c(nrow(SOM2.fp):1)-0.2)
-segments(SOM2.fp$pB_2.5..CI, c(nrow(SOM2.fp):1), 
-         SOM2.fp$pB_97.5..CI, c(nrow(SOM2.fp):1))
-segments(SOM2.fp$pC_2.5..CI, c(nrow(SOM2.fp):1)+0.2, 
-         SOM2.fp$pC_97.5..CI, c(nrow(SOM2.fp):1)+0.2)
-for(i in 1:nrow(SOM2.p)){
-  lines(c(-0,1), c(i,i)-0.5, lty="dotted")
-}
-
-
-
-
-
-# Amphibians
-Amphi = c("Dendropsophus leucophyllatus","Dendropsophus melanargyreus",
-          "Dendropsophus minutus","Dendropsophus nanus","Dermatonotus muelleri",
-          "Elachistocleis sp.","Eupemphix nattereri","Hylinae","Hyloidea",
-          "Hypsiboas punctatus","Hypsiboas raniceps","Leptodactylus",
-          "Leptodactylus chaquensis","Leptodactylus elenae","Leptodactylus fuscus",
-          "Leptodactylus podicipinus","Leptodactylus syphax","Leptodactylus vastus",
-          "Osteocephalus","Osteocephalus taurinus","Phyllomedusa azurea",
-          "Phyllomedusa boliviana","Physalaemus albonotatus","Physalaemus centralis",
-          "Physalaemus cuvieri","Pseudis limellum","Pseudis paradoxa",
-          "Pseudopaludicola mystacalis","Rhinella schneideri","Scinax fuscomarginatus",
-          "Scinax fuscovarius","Scinax nasicus","Scinax ruber","Scinax sp. FB-2014a",
-          "Bufonidae","Elachistocleis","Gastrophryninae","Hylidae",
-          "Leptodactylus latinasus","Melanophryniscus","Pseudis","Pseudis laevis","Scinax")
-nrow(AbundSOM[Amphi,])
-
-InputSOM = AbundSOM[Amphi,grep("sample.T", names(AbundSOM))]
-
-# create SOM alternative input for export
-cbind(rownames(InputSOM)[1], t(InputSOM[1,]))
-
-ArrangedSOM = matrix(ncol = 2)
-for (i in 1:nrow(InputSOM)) {
-  ArrangedSOM = rbind(ArrangedSOM, cbind(rownames(InputSOM)[i], t(InputSOM[i,])))
-}
-
-# This writes out the file that can be edited to get the input format required by Thierry
-# write.csv(file="input_som.csv", ArrangedSOM)
-
-# Clarify vague identifications
-# Osteocephalus
-grep("Osteocephalus", MetaHead$sci_name)
-osteo = MetaHead[grep("Osteocephalus", MetaHead$sci_name),]
-
-# Elachistocleis
-elach = MetaHead[grep("Elachistocleis", MetaHead$sci_name),]
-
-# Pseudis
-pseud = MetaHead[grep("Pseudis", MetaHead$sci_name),]
-
-write.csv(file = "species-to-clear.csv", rbind(osteo,elach,pseud))
-
-# tree checked in seaview, I would believe all variants.
-
-# 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Hominidae sequences
-sum(apply(AbundHead, 1, sum)[MetaHead$family == "Hominidae"], na.rm=T)
-
-
-summary(MetaAll$sci_name)
-
-
-# Read distributions
-hist(apply(AllData[,8:679], 2, sum), nclass = 20)
-sum(AllData[,8:679])
-
-# Calculate how often a sequence is head, internal or singleton
-AllData = cbind(AllData, 
-                no_sing = apply(AllData[,680:1351], 1, function(x) length(which(x == "s"))),
-                no_inte = apply(AllData[,680:1351], 1, function(x) length(which(x == "i"))),
-                no_head = apply(AllData[,680:1351], 1, function(x) length(which(x == "h"))))
-
-HasHead = AllData$no_head != 0
-
-# Keep sequence variants that were at least once observed as head 
-DataWitHead = AllData[HasHead,]
-sum(DataWitHead[,8:679])
-hist(apply(DataWitHead[,8:679], 2, sum), nclass = 20)
-summary(apply(DataWitHead[,8:679], 2, sum))
-
-# retain only 16S samples
-All_16S = grep("16S.$", names(DataWitHead))
-Heads16S = cbind(DataWitHead[,1:7], DataWitHead[,All_16S], DataWitHead[,1352:1362])
-sum(Heads16S[,8:343])
-
-write.csv(file="16S_R_filtered.csv", Heads16S)
-
-
-
-
-
-TotPresent = apply(LakeReads,2,function(vec) sum(vec>0))
-hist(TotPresent)
-
-
