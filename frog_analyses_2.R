@@ -238,6 +238,57 @@ colnames(AbundHead)[MPX]
 # Maximum number of reads in any control sample
 MaxControl = apply(AbundHead[,c(NPC,NEC,GEC,MPX, CEN)], 1, max)
 
+# Sequences in negative controls
+NegativeControl = AbundHead[,c(NPC,NEC,GEC,MPX, CEN)]
+NegativeControl = NegativeControl[
+  apply(NegativeControl,1,sum) > 0,]
+
+# Include sequence names into data
+NegativeControl <- data.frame(X = rownames(NegativeControl),
+                              NegativeControl)
+MetaNegative <- data.frame(X = rownames(MetaHead),
+                           MetaHead)
+
+# Into long-form
+NegativeLong <- melt(NegativeControl, id = "X")
+
+# join all info of sequences from the negative controls
+NegativeLong <- left_join(NegativeLong, MetaNegative,
+                          by = "X")
+
+# negative categories
+NegativeNames <- data.frame(variable = names(NegativeControl)[2:53],
+                            types = c(rep(c("NPC"),28), 
+                                      rep(c("NEC"),4),
+                                      rep("GEC",4),
+                                      rep("MPX",4),
+                                      rep("CEN",12)))
+
+# join the negative categories
+NegativeLong <- left_join(NegativeLong, NegativeNames,
+                          by = "variable")
+
+# calculate average reads by negative types
+NegativeTypes <- cast(NegativeLong, X ~ types, fun = mean)
+NegativeTypes <- left_join(NegativeTypes, MetaNegative, by="X")
+
+# Aggregate negative control sequence by sequence name
+NegativeAggregate = data.frame(NegativeTypes[,c(2:6,12)],
+                               row.names = NegativeTypes$X)
+  
+NegativeCounts = aggregate(. ~ sci_name, NegativeAggregate, sum)
+NegativeCounts = data.frame(NegativeCounts,
+                            sum = apply(NegativeCounts[,2:6],
+                                        1,sum))
+NegativeCounts <- NegativeCounts[order(NegativeCounts$sum,
+                                       decreasing = T),]
+rownames(NegativeCounts) <- NegativeCounts$sci_name
+NegativeCounts <- format(NegativeCounts[,2:7], 
+                         scientific = F,
+                         digits = 1)
+
+write.csv(file = "negative_sequences.csv", NegativeCounts)
+
 # Extract the highest read numbers in a control from every sample
 # checks
 # AbundHead[1:5,100:102]
